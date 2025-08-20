@@ -7,6 +7,7 @@ import CertificateValidator from './components/CertificateValidator';
 import SegmentedControl from './components/SegmentedControl';
 import ThemeToggle from './components/ThemeToggle';
 import Toast from './components/Toast';
+import KeyStrengthAnalyzer from './components/KeyStrengthAnalyzer';
 import * as cryptoUtils from './utils/cryptoUtils';
 import './App.css';
 
@@ -77,7 +78,9 @@ function App() {
     jwksPair: '',
     jwksPublic: '',
     publicPem: '',
-    privatePem: ''
+    privatePem: '',
+    openssh: '',
+    publicJwkObject: null
   });
 
   const [pemConversionOutputs, setPemConversionOutputs] = useState({
@@ -86,7 +89,9 @@ function App() {
     jwksPair: '',
     jwksPublic: '',
     publicPem: '',
-    privatePem: ''
+    privatePem: '',
+    openssh: '',
+    publicJwkObject: null
   });
 
   const [pemConversionError, setPemConversionError] = useState(null);
@@ -105,7 +110,9 @@ function App() {
       jwksPair: '',
       jwksPublic: '',
       publicPem: '',
-      privatePem: ''
+      privatePem: '',
+      openssh: '',
+      publicJwkObject: null
     });
     setMessage('');
   };
@@ -117,7 +124,9 @@ function App() {
       jwksPair: '',
       jwksPublic: '',
       publicPem: '',
-      privatePem: ''
+      privatePem: '',
+      openssh: '',
+      publicJwkObject: null
     });
     setPemConversionError(null);
   };
@@ -167,13 +176,18 @@ function App() {
       const spki = await crypto.subtle.exportKey('spki', keyPair.publicKey);
       const pkcs8 = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
 
+      // Generate OpenSSH format
+      const opensshKey = cryptoUtils.jwkToOpenSSH(jwkPub, 'cryptoforge-generated');
+
       setOutputs({
         privateJwk: cryptoUtils.prettyJson(jwkPriv),
         publicJwk: cryptoUtils.prettyJson(jwkPub),
         jwksPair: JSON.stringify({ keys: [jwkPub, jwkPriv] }, null, 2),
         jwksPublic: JSON.stringify({ keys: [jwkPub] }, null, 2),
         publicPem: cryptoUtils.derToPem(spki, 'PUBLIC KEY'),
-        privatePem: cryptoUtils.derToPem(pkcs8, 'PRIVATE KEY')
+        privatePem: cryptoUtils.derToPem(pkcs8, 'PRIVATE KEY'),
+        openssh: opensshKey,
+        publicJwkObject: jwkPub
       });
 
       setMessage('Keys generated in your browser.');
@@ -251,6 +265,9 @@ function App() {
         pubPemOut = cryptoUtils.derToPem(der, 'PUBLIC KEY');
       }
 
+      // Generate OpenSSH format for public key
+      const opensshKey = cryptoUtils.jwkToOpenSSH(jwkPub, 'cryptoforge-converted');
+
       setPemConversionOutputs({
         privateJwk: jwkPriv ? cryptoUtils.prettyJson(jwkPriv) : '',
         publicJwk: cryptoUtils.prettyJson(jwkPub),
@@ -259,7 +276,9 @@ function App() {
           JSON.stringify({ keys: [jwkPub] }, null, 2),
         jwksPublic: JSON.stringify({ keys: [jwkPub] }, null, 2),
         publicPem: pubPemOut,
-        privatePem: privPemOut
+        privatePem: privPemOut,
+        openssh: opensshKey,
+        publicJwkObject: jwkPub
       });
 
       setMessage('PEM converted successfully.');
@@ -357,6 +376,19 @@ function App() {
                   setMessage={setMessage}
                   showToast={showToast}
                 />
+                <OutputCard
+                  title="Public Key (OpenSSH)"
+                  value={outputs.openssh}
+                  filename="id_rsa.pub"
+                  setMessage={setMessage}
+                  showToast={showToast}
+                />
+              </section>
+            )}
+
+            {outputs.publicJwkObject && (
+              <section className="card outputs-animated" style={{ marginTop: '12px' }}>
+                <KeyStrengthAnalyzer jwk={outputs.publicJwkObject} />
               </section>
             )}
           </>
@@ -393,10 +425,6 @@ function App() {
           <li>The <code>alg</code> on imported keys is inferred (e.g., RS256 for RSA; ES256/384/512 for EC) and may not match the original usage.</li>
         </ul>
       </section>
-
-        <div className="footer">
-          © {new Date().getFullYear()} • Built for developers. Use at your own risk.
-        </div>
       </div>
       
       <footer className="security-footer desktop-only">

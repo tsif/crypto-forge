@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import OutputCard from './OutputCard';
 import Spinner from './Spinner';
+import KeyStrengthAnalyzer from './KeyStrengthAnalyzer';
 
 function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, error, showToast }) {
   const [pemInput, setPemInput] = useState('');
@@ -163,6 +164,19 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
               showToast={showToast}
             />
           )}
+          <OutputCard
+            title="Converted Public Key (OpenSSH)"
+            value={outputs.openssh}
+            filename="converted-id_rsa.pub"
+            setMessage={setMessage}
+            showToast={showToast}
+          />
+        </section>
+      )}
+
+      {outputs && outputs.publicJwkObject && (
+        <section className="card outputs-animated" style={{ marginTop: '12px' }}>
+          <KeyStrengthAnalyzer jwk={outputs.publicJwkObject} />
         </section>
       )}
 

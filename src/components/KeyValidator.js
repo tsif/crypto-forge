@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as cryptoUtils from '../utils/cryptoUtils';
 import Spinner from './Spinner';
+import KeyStrengthAnalyzer from './KeyStrengthAnalyzer';
 
 function KeyValidator() {
   const [keyInput, setKeyInput] = useState('');
@@ -160,6 +161,7 @@ function KeyValidator() {
       // Add thumbprint
       const publicJwk = isPrivate ? cryptoUtils.derivePublicFromPrivateJwk(jwk) : jwk;
       details.thumbprint = await cryptoUtils.jwkThumbprint(publicJwk);
+      details.publicJwkObject = publicJwk;
 
       setValidationResult(details);
     } catch (error) {
@@ -350,6 +352,12 @@ function KeyValidator() {
               <p className="muted">{validationResult.error}</p>
             </div>
           )}
+        </section>
+      )}
+
+      {validationResult && validationResult.valid && validationResult.publicJwkObject && (
+        <section className="card outputs-animated" style={{ marginTop: '12px' }}>
+          <KeyStrengthAnalyzer jwk={validationResult.publicJwkObject} />
         </section>
       )}
     </>
