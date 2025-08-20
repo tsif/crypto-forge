@@ -1,16 +1,53 @@
 import React, { useState } from 'react';
 import * as cryptoUtils from '../utils/cryptoUtils';
+import Spinner from './Spinner';
 
 function CertificateValidator() {
   const [certInput, setCertInput] = useState('');
   const [validationResult, setValidationResult] = useState(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [inputError, setInputError] = useState(null);
+
+  const validateCertInput = (input) => {
+    if (!input.trim()) {
+      setInputError(null);
+      return;
+    }
+
+    const trimmed = input.trim();
+    const hasBegin = /-----BEGIN CERTIFICATE-----/.test(trimmed);
+    const hasEnd = /-----END CERTIFICATE-----/.test(trimmed);
+    
+    if (!hasBegin && !hasEnd) {
+      setInputError('Certificate must be in PEM format with "-----BEGIN CERTIFICATE-----" header');
+      return;
+    }
+    
+    if (!hasBegin) {
+      setInputError('Missing certificate header (-----BEGIN CERTIFICATE-----)');
+      return;
+    }
+    
+    if (!hasEnd) {
+      setInputError('Missing certificate footer (-----END CERTIFICATE-----)');
+      return;
+    }
+
+    setInputError(null);
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setCertInput(value);
+    validateCertInput(value);
+  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const text = await file.text();
     setCertInput(text);
+    validateCertInput(text);
   };
 
   const parseCertificate = (der) => {
@@ -184,6 +221,7 @@ function CertificateValidator() {
   const handleClear = () => {
     setCertInput('');
     setValidationResult(null);
+    setInputError(null);
   };
 
   const formatDate = (date) => {
@@ -216,6 +254,7 @@ function CertificateValidator() {
             onClick={validateCertificate} 
             disabled={isValidating || !certInput.trim()}
           >
+            {isValidating && <Spinner size={16} />}
             Validate Certificate
           </button>
           <button 
@@ -226,12 +265,19 @@ function CertificateValidator() {
           </button>
         </div>
         <div className="space"></div>
-        <textarea 
-          value={certInput}
-          onChange={(e) => setCertInput(e.target.value)}
-          placeholder={`-----BEGIN CERTIFICATE-----\nMIIDEDCCAragAwIBAgIUE1oN09EvmTiIbgp1+U580bHJB+MwCgYIKoZIzj0EAwIw...\n-----END CERTIFICATE-----`}
-          style={{ minHeight: '200px' }}
-        />
+        <div className={`field ${inputError ? 'field-error' : (certInput.trim() && !inputError ? 'field-success' : '')}`}>
+          <textarea 
+            value={certInput}
+            onChange={handleInputChange}
+            placeholder={`-----BEGIN CERTIFICATE-----\nMIIDEDCCAragAwIBAgIUE1oN09EvmTiIbgp1+U580bHJB+MwCgYIKoZIzj0EAwIw...\n-----END CERTIFICATE-----`}
+            style={{ minHeight: '200px' }}
+          />
+          {inputError && (
+            <div className="error-message">
+              ⚠ {inputError}
+            </div>
+          )}
+        </div>
       </section>
 
       {validationResult && (

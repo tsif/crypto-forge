@@ -1,10 +1,44 @@
 import React, { useState } from 'react';
 import * as cryptoUtils from '../utils/cryptoUtils';
+import Spinner from './Spinner';
 
 function KeyValidator() {
   const [keyInput, setKeyInput] = useState('');
   const [validationResult, setValidationResult] = useState(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [inputError, setInputError] = useState(null);
+
+  const validateInput = (input) => {
+    if (!input.trim()) {
+      setInputError(null);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(input.trim());
+      if (!parsed.kty) {
+        setInputError('Missing required "kty" (key type) parameter');
+        return;
+      }
+      if (parsed.kty !== 'RSA' && parsed.kty !== 'EC') {
+        setInputError('Unsupported key type. Only RSA and EC keys are supported');
+        return;
+      }
+      if (parsed.kty === 'EC' && !parsed.crv) {
+        setInputError('EC keys must have "crv" (curve) parameter');
+        return;
+      }
+      setInputError(null);
+    } catch (e) {
+      setInputError('Invalid JSON format');
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setKeyInput(value);
+    validateInput(value);
+  };
 
 
   const validateKey = async () => {
@@ -141,6 +175,7 @@ function KeyValidator() {
   const handleClear = () => {
     setKeyInput('');
     setValidationResult(null);
+    setInputError(null);
   };
 
   return (
@@ -157,6 +192,7 @@ function KeyValidator() {
             onClick={validateKey} 
             disabled={isValidating || !keyInput.trim()}
           >
+            {isValidating && <Spinner size={16} />}
             Validate JWK
           </button>
           <button 
@@ -167,12 +203,19 @@ function KeyValidator() {
           </button>
         </div>
         <div className="space"></div>
-        <textarea 
-          value={keyInput}
-          onChange={(e) => setKeyInput(e.target.value)}
-          placeholder={`{\n  "kty": "RSA",\n  "n": "...",\n  "e": "AQAB",\n  "d": "...",\n  "alg": "RS256",\n  "use": "sig"\n}\n\nor\n\n{\n  "kty": "EC",\n  "crv": "P-256",\n  "x": "...",\n  "y": "...",\n  "d": "...",\n  "alg": "ES256",\n  "use": "sig"\n}`}
-          style={{ minHeight: '200px' }}
-        />
+        <div className={`field ${inputError ? 'field-error' : (keyInput.trim() && !inputError ? 'field-success' : '')}`}>
+          <textarea 
+            value={keyInput}
+            onChange={handleInputChange}
+            placeholder={`{\n  "kty": "RSA",\n  "n": "...",\n  "e": "AQAB",\n  "d": "...",\n  "alg": "RS256",\n  "use": "sig"\n}\n\nor\n\n{\n  "kty": "EC",\n  "crv": "P-256",\n  "x": "...",\n  "y": "...",\n  "d": "...",\n  "alg": "ES256",\n  "use": "sig"\n}`}
+            style={{ minHeight: '200px' }}
+          />
+          {inputError && (
+            <div className="error-message">
+              ⚠ {inputError}
+            </div>
+          )}
+        </div>
       </section>
 
       {validationResult && (

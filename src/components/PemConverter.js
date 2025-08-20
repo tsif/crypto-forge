@@ -1,14 +1,60 @@
 import React, { useState } from 'react';
 import OutputCard from './OutputCard';
+import Spinner from './Spinner';
 
-function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, error }) {
+function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, error, showToast }) {
   const [pemInput, setPemInput] = useState('');
+  const [inputError, setInputError] = useState(null);
+
+  const validatePemInput = (input) => {
+    if (!input.trim()) {
+      setInputError(null);
+      return;
+    }
+
+    const trimmed = input.trim();
+    const hasBegin = /-----BEGIN (PUBLIC|PRIVATE) KEY-----/.test(trimmed);
+    const hasEnd = /-----END (PUBLIC|PRIVATE) KEY-----/.test(trimmed);
+    
+    if (!hasBegin && !hasEnd) {
+      setInputError('PEM format must start with "-----BEGIN PUBLIC KEY-----" or "-----BEGIN PRIVATE KEY-----"');
+      return;
+    }
+    
+    if (!hasBegin) {
+      setInputError('Missing PEM header (-----BEGIN PUBLIC/PRIVATE KEY-----)');
+      return;
+    }
+    
+    if (!hasEnd) {
+      setInputError('Missing PEM footer (-----END PUBLIC/PRIVATE KEY-----)');
+      return;
+    }
+
+    // Check if begin and end match
+    const beginMatch = trimmed.match(/-----BEGIN (PUBLIC|PRIVATE) KEY-----/);
+    const endMatch = trimmed.match(/-----END (PUBLIC|PRIVATE) KEY-----/);
+    
+    if (beginMatch && endMatch && beginMatch[1] !== endMatch[1]) {
+      setInputError('PEM header and footer type mismatch');
+      return;
+    }
+
+    setInputError(null);
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setPemInput(value);
+    validatePemInput(value);
+  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const text = await file.text();
     setPemInput(text);
+    validatePemInput(text);
   };
 
   const handleConvert = () => {
@@ -17,6 +63,7 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
 
   const handleClear = () => {
     setPemInput('');
+    setInputError(null);
     if (onClearOutputs) {
       onClearOutputs();
     }
@@ -43,6 +90,7 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
             onClick={handleConvert} 
             disabled={busy || !pemInput.trim()}
           >
+            {busy && <Spinner size={16} />}
             Convert PEM
           </button>
           <button 
@@ -53,11 +101,18 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
           </button>
         </div>
         <div className="space"></div>
-        <textarea 
-          value={pemInput}
-          onChange={(e) => setPemInput(e.target.value)}
-          placeholder={`-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----`}
-        />
+        <div className={`field ${inputError ? 'field-error' : (pemInput.trim() && !inputError ? 'field-success' : '')}`}>
+          <textarea 
+            value={pemInput}
+            onChange={handleInputChange}
+            placeholder={`-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----`}
+          />
+          {inputError && (
+            <div className="error-message">
+              ⚠ {inputError}
+            </div>
+          )}
+        </div>
       </section>
 
       {hasOutputs && (
@@ -68,6 +123,7 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
               value={outputs.privateJwk}
               filename="converted-private.jwk.json"
               setMessage={setMessage}
+              showToast={showToast}
             />
           )}
           <OutputCard
@@ -75,24 +131,28 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
             value={outputs.publicJwk}
             filename="converted-public.jwk.json"
             setMessage={setMessage}
+            showToast={showToast}
           />
           <OutputCard
             title="Converted JWK Set"
             value={outputs.jwksPair}
             filename="converted-jwks.json"
             setMessage={setMessage}
+            showToast={showToast}
           />
           <OutputCard
             title="Converted JWK Set (Public only)"
             value={outputs.jwksPublic}
             filename="converted-jwks-public.json"
             setMessage={setMessage}
+            showToast={showToast}
           />
           <OutputCard
             title="Converted Public Key (SPKI PEM)"
             value={outputs.publicPem}
             filename="converted-public.pem"
             setMessage={setMessage}
+            showToast={showToast}
           />
           {outputs.privatePem && (
             <OutputCard
@@ -100,6 +160,7 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
               value={outputs.privatePem}
               filename="converted-private.pem"
               setMessage={setMessage}
+              showToast={showToast}
             />
           )}
         </section>

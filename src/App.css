@@ -128,6 +128,31 @@ textarea {
   font-size: 12px;
   line-height: 1.45;
   resize: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Field validation styles */
+.field-error textarea,
+.field-error input,
+.field-error select {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.1);
+}
+
+.field-error .error-message {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.field-success textarea,
+.field-success input,
+.field-success select {
+  border-color: #10b981;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.1);
 }
 
 .btn {
@@ -482,6 +507,49 @@ code {
 
 .security-list em {
   font-style: italic;
+}
+
+/* Toast notification */
+.toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 2000;
+  animation: toastFadeIn 0.2s ease-out forwards;
+  backdrop-filter: blur(10px);
+}
+
+@keyframes toastFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Spinner */
+.spinner {
+  border: 2px solid var(--line);
+  border-top: 2px solid var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Theme toggle button */

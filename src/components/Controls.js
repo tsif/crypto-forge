@@ -1,4 +1,5 @@
 import React from 'react';
+import Spinner from './Spinner';
 
 function Controls({
   algorithm,
@@ -104,6 +105,7 @@ function Controls({
           onClick={onGenerate} 
           disabled={busy}
         >
+          {busy && <Spinner size={16} />}
           Generate keypair
         </button>
         <button 

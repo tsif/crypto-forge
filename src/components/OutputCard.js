@@ -1,12 +1,20 @@
 import React from 'react';
 
-function OutputCard({ title, value, filename, setMessage }) {
+function OutputCard({ title, value, filename, setMessage, showToast }) {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(value || '');
-      setMessage('Copied to clipboard.');
+      if (showToast) {
+        showToast('Copied!');
+      } else {
+        setMessage('Copied to clipboard.');
+      }
     } catch (err) {
-      setMessage('Copy failed.');
+      if (showToast) {
+        showToast('Copy failed');
+      } else {
+        setMessage('Copy failed.');
+      }
     }
   };
 

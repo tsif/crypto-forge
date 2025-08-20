@@ -6,6 +6,7 @@ import KeyValidator from './components/KeyValidator';
 import CertificateValidator from './components/CertificateValidator';
 import SegmentedControl from './components/SegmentedControl';
 import ThemeToggle from './components/ThemeToggle';
+import Toast from './components/Toast';
 import * as cryptoUtils from './utils/cryptoUtils';
 import './App.css';
 
@@ -18,6 +19,9 @@ function App() {
   const [message, setMessage] = useState('Keys generated in your browser.');
   const [busy, setBusy] = useState(false);
   const [activeTab, setActiveTab] = useState('generate');
+  
+  // Toast state
+  const [toast, setToast] = useState({ show: false, message: '' });
   
   // Theme state with system preference detection
   const [theme, setTheme] = useState(() => {
@@ -57,6 +61,14 @@ function App() {
 
   const toggleTheme = () => {
     setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+  };
+
+  const showToast = (message) => {
+    setToast({ show: true, message });
+  };
+
+  const hideToast = () => {
+    setToast({ show: false, message: '' });
   };
   
   const [outputs, setOutputs] = useState({
@@ -308,36 +320,42 @@ function App() {
                   value={outputs.privateJwk}
                   filename="private.jwk.json"
                   setMessage={setMessage}
+                  showToast={showToast}
                 />
                 <OutputCard
                   title="Public JWK"
                   value={outputs.publicJwk}
                   filename="public.jwk.json"
                   setMessage={setMessage}
+                  showToast={showToast}
                 />
                 <OutputCard
                   title="JWK Set (Keypair)"
                   value={outputs.jwksPair}
                   filename="jwks-keypair.json"
                   setMessage={setMessage}
+                  showToast={showToast}
                 />
                 <OutputCard
                   title="JWK Set (Public only)"
                   value={outputs.jwksPublic}
                   filename="jwks-public.json"
                   setMessage={setMessage}
+                  showToast={showToast}
                 />
                 <OutputCard
                   title="Public Key (SPKI PEM)"
                   value={outputs.publicPem}
                   filename="public.pem"
                   setMessage={setMessage}
+                  showToast={showToast}
                 />
                 <OutputCard
                   title="Private Key (PKCS#8 PEM)"
                   value={outputs.privatePem}
                   filename="private.pem"
                   setMessage={setMessage}
+                  showToast={showToast}
                 />
               </section>
             )}
@@ -352,6 +370,7 @@ function App() {
             setMessage={setMessage}
             onClearOutputs={clearPemOutputs}
             error={pemConversionError}
+            showToast={showToast}
           />
         )}
 
@@ -396,6 +415,12 @@ function App() {
           </div>
         </div>
       </footer>
+      
+      <Toast 
+        message={toast.message} 
+        show={toast.show} 
+        onClose={hideToast} 
+      />
     </>
   );
 }
