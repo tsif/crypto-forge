@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import * as cryptoUtils from '../utils/cryptoUtils';
 import Spinner from './Spinner';
+import { ASN1Parser, parseOid, parseTime, parseString, parseInteger, parseBitString, parseDN } from '../utils/asn1Parser';
+import { CertificateChainValidator } from '../utils/certChainValidator';
 
 function CertificateValidator() {
   const [certInput, setCertInput] = useState('');
@@ -52,25 +54,235 @@ function CertificateValidator() {
 
   const parseCertificate = (der) => {
     try {
-      // Basic ASN.1 parsing to extract certificate information
-      const cert = new Uint8Array(der);
+      const parser = new ASN1Parser(der);
+      const cert = parser.parseObject();
       
-      // This is a simplified parser - in a real implementation you'd use a proper ASN.1 library
-      // For now, we'll extract what we can and show basic certificate info
+      if (!cert.isSequence()) {
+        throw new Error('Certificate must be a SEQUENCE');
+      }
+      
+      const certChildren = parser.parseSequence(cert);
+      if (certChildren.length < 3) {
+        throw new Error('Invalid certificate structure');
+      }
+      
+      const tbsCertificate = certChildren[0]; // TBSCertificate
+      const signatureAlgorithm = certChildren[1]; // AlgorithmIdentifier
+      const signatureValue = certChildren[2]; // BIT STRING
+      
+      // Parse TBSCertificate
+      const tbsParser = new ASN1Parser(tbsCertificate.content);
+      const tbsChildren = tbsParser.parseAll();
+      
+      let tbsIndex = 0;
+      
+      // Version (optional, default v1)
+      let version = 1;
+      if (tbsChildren[tbsIndex] && tbsChildren[tbsIndex].isContext(0)) {
+        const versionParser = new ASN1Parser(tbsChildren[tbsIndex].content);
+        const versionObj = versionParser.parseObject();
+        if (versionObj.isInteger()) {
+          version = parseInteger(versionObj.content) + 1; // ASN.1 is 0-based
+        }
+        tbsIndex++;
+      }
+      
+      // Serial Number
+      const serialNumberObj = tbsChildren[tbsIndex++];
+      let serialNumber = 'Unknown';
+      if (serialNumberObj && serialNumberObj.isInteger()) {
+        serialNumber = '0x' + Array.from(serialNumberObj.content)
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('').toUpperCase();
+      }
+      
+      // Signature Algorithm (skip for now)
+      tbsIndex++;
+      
+      // Issuer
+      const issuerObj = tbsChildren[tbsIndex++];
+      let issuer = 'Unknown Issuer';
+      if (issuerObj && issuerObj.isSequence()) {
+        issuer = parseDN(issuerObj);
+      }
+      
+      // Validity
+      const validityObj = tbsChildren[tbsIndex++];
+      let validFrom = new Date();
+      let validTo = new Date();
+      if (validityObj && validityObj.isSequence()) {
+        const validityParser = new ASN1Parser(validityObj.content);
+        const validityChildren = validityParser.parseAll();
+        if (validityChildren.length >= 2) {
+          const notBefore = validityChildren[0];
+          const notAfter = validityChildren[1];
+          
+          if (notBefore.isUtcTime()) {
+            validFrom = parseTime(notBefore.content, false);
+          } else if (notBefore.isGeneralizedTime()) {
+            validFrom = parseTime(notBefore.content, true);
+          }
+          
+          if (notAfter.isUtcTime()) {
+            validTo = parseTime(notAfter.content, false);
+          } else if (notAfter.isGeneralizedTime()) {
+            validTo = parseTime(notAfter.content, true);
+          }
+        }
+      }
+      
+      // Subject
+      const subjectObj = tbsChildren[tbsIndex++];
+      let subject = 'Unknown Subject';
+      if (subjectObj && subjectObj.isSequence()) {
+        subject = parseDN(subjectObj);
+      }
+      
+      // Subject Public Key Info
+      const spkiObj = tbsChildren[tbsIndex++];
+      let publicKeyAlgorithm = 'Unknown';
+      if (spkiObj && spkiObj.isSequence()) {
+        const spkiParser = new ASN1Parser(spkiObj.content);
+        const spkiChildren = spkiParser.parseAll();
+        if (spkiChildren.length >= 1) {
+          const algObj = spkiChildren[0];
+          if (algObj.isSequence()) {
+            const algParser = new ASN1Parser(algObj.content);
+            const oidObj = algParser.parseObject();
+            if (oidObj.isOid()) {
+              publicKeyAlgorithm = parseOid(oidObj.content);
+            }
+          }
+        }
+      }
+      
+      // Extensions (optional)
+      let keyUsage = [];
+      let extendedKeyUsage = [];
+      let subjectAltName = [];
+      let basicConstraints = 'N/A';
+      let authorityKeyId = 'N/A';
+      let subjectKeyId = 'N/A';
+      
+      if (tbsIndex < tbsChildren.length && tbsChildren[tbsIndex].isContext(3)) {
+        const extensionsObj = tbsChildren[tbsIndex];
+        const extensionsParser = new ASN1Parser(extensionsObj.content);
+        const extensionsSeq = extensionsParser.parseObject();
+        
+        if (extensionsSeq.isSequence()) {
+          const extensionsSeqParser = new ASN1Parser(extensionsSeq.content);
+          const extensions = extensionsSeqParser.parseAll();
+          
+          for (const ext of extensions) {
+            if (ext.isSequence()) {
+              const extParser = new ASN1Parser(ext.content);
+              const extChildren = extParser.parseAll();
+              
+              if (extChildren.length >= 2) {
+                const oidObj = extChildren[0];
+                let critical = false;
+                let valueObj;
+                
+                if (extChildren.length === 3) {
+                  critical = extChildren[1].tag.tagNumber === 1; // BOOLEAN
+                  valueObj = extChildren[2];
+                } else {
+                  valueObj = extChildren[1];
+                }
+                
+                if (oidObj.isOid() && valueObj.isOctetString()) {
+                  const oid = parseOid(oidObj.content);
+                  
+                  switch (oid) {
+                    case 'keyUsage':
+                      // Parse key usage bit string
+                      const kuParser = new ASN1Parser(valueObj.content);
+                      const kuBitString = kuParser.parseObject();
+                      if (kuBitString.isBitString()) {
+                        const bits = parseBitString(kuBitString.content);
+                        if (bits.length > 0) {
+                          const usages = [];
+                          const kuNames = [
+                            'Digital Signature', 'Non Repudiation', 'Key Encipherment',
+                            'Data Encipherment', 'Key Agreement', 'Key Cert Sign',
+                            'CRL Sign', 'Encipher Only', 'Decipher Only'
+                          ];
+                          for (let i = 0; i < Math.min(9, bits.length * 8); i++) {
+                            const byteIndex = Math.floor(i / 8);
+                            const bitIndex = 7 - (i % 8);
+                            if (bits[byteIndex] & (1 << bitIndex)) {
+                              usages.push(kuNames[i]);
+                            }
+                          }
+                          keyUsage = usages;
+                        }
+                      }
+                      break;
+                    case 'subjectAltName':
+                      // Parse subject alt name
+                      const sanParser = new ASN1Parser(valueObj.content);
+                      const sanSeq = sanParser.parseObject();
+                      if (sanSeq.isSequence()) {
+                        const sanSeqParser = new ASN1Parser(sanSeq.content);
+                        const sanItems = sanSeqParser.parseAll();
+                        const altNames = [];
+                        for (const item of sanItems) {
+                          if (item.tag.tagClass === 2) { // Context-specific
+                            const value = parseString(item.content);
+                            const typeNames = ['', 'Email', 'DNS', 'x400', 'DN', 'EDI', 'URI', 'IP', 'RegID'];
+                            const typeName = typeNames[item.tag.tagNumber] || `Type${item.tag.tagNumber}`;
+                            altNames.push(`${typeName}: ${value}`);
+                          }
+                        }
+                        subjectAltName = altNames;
+                      }
+                      break;
+                    case 'basicConstraints':
+                      const bcParser = new ASN1Parser(valueObj.content);
+                      const bcSeq = bcParser.parseObject();
+                      if (bcSeq.isSequence()) {
+                        const bcSeqParser = new ASN1Parser(bcSeq.content);
+                        const bcChildren = bcSeqParser.parseAll();
+                        let isCA = false;
+                        if (bcChildren.length > 0 && bcChildren[0].tag.tagNumber === 1) {
+                          isCA = bcChildren[0].content[0] !== 0;
+                        }
+                        basicConstraints = isCA ? 'CA: TRUE' : 'CA: FALSE';
+                      }
+                      break;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Parse signature algorithm
+      let signatureAlgorithmName = 'Unknown';
+      if (signatureAlgorithm.isSequence()) {
+        const sigAlgParser = new ASN1Parser(signatureAlgorithm.content);
+        const sigOidObj = sigAlgParser.parseObject();
+        if (sigOidObj.isOid()) {
+          signatureAlgorithmName = parseOid(sigOidObj.content);
+        }
+      }
       
       return {
-        version: 3, // X.509 v3 is most common
-        serialNumber: 'Parsed from certificate',
-        subject: 'Extracted subject',
-        issuer: 'Extracted issuer',
-        validFrom: new Date(),
-        validTo: new Date(),
-        algorithm: 'Signature algorithm',
-        publicKeyAlgorithm: 'Public key algorithm',
-        keyUsage: ['Digital Signature', 'Key Encipherment'],
-        extendedKeyUsage: ['TLS Web Server Authentication'],
-        subjectAltName: [],
-        extensions: []
+        version,
+        serialNumber,
+        subject,
+        issuer,
+        validFrom,
+        validTo,
+        signatureAlgorithm: signatureAlgorithmName,
+        publicKeyAlgorithm,
+        keyUsage,
+        extendedKeyUsage,
+        subjectAltName,
+        basicConstraints,
+        authorityKeyIdentifier: authorityKeyId,
+        subjectKeyIdentifier: subjectKeyId
       };
     } catch (error) {
       throw new Error('Failed to parse certificate: ' + error.message);
@@ -82,8 +294,55 @@ function CertificateValidator() {
     setValidationResult(null);
 
     try {
-      // Parse the certificate PEM
-      const { der, label } = cryptoUtils.pemToDer(certInput.trim());
+      const inputText = certInput.trim();
+      
+      // Check if this is a certificate chain (multiple certificates)
+      const certBlocks = inputText.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g);
+      
+      if (!certBlocks || certBlocks.length === 0) {
+        setValidationResult({
+          valid: false,
+          error: 'Invalid certificate format. Expected "BEGIN CERTIFICATE" block.'
+        });
+        return;
+      }
+
+      if (certBlocks.length > 1) {
+        // Handle certificate chain
+        const chainValidator = new CertificateChainValidator();
+        const certificates = chainValidator.parseCertificateChain(inputText);
+        const chainValidation = chainValidator.validateChain();
+        
+        // Determine overall chain validity status based on all certificates
+        let overallValidityStatus = 'valid';
+        const now = new Date();
+        
+        for (const cert of certificates.filter(c => !c.error)) {
+          if (cert.validTo && cert.validTo < now) {
+            overallValidityStatus = 'expired';
+            break;
+          } else if (cert.validFrom && cert.validFrom > now) {
+            overallValidityStatus = 'not-yet-valid';
+            break;
+          }
+        }
+        
+        setValidationResult({
+          valid: chainValidation.valid,
+          isChain: true,
+          chainValidation,
+          certificates,
+          validityStatus: overallValidityStatus,
+          fingerprints: certificates.length > 0 && certificates[0].der ? {
+            sha1: await calculateFingerprint(certificates[0].der, 'SHA-1'),
+            sha256: await calculateFingerprint(certificates[0].der, 'SHA-256')
+          } : null
+        });
+        return;
+      }
+
+      // Single certificate validation (existing logic)
+      const { der, label } = cryptoUtils.pemToDer(inputText);
       
       if (!label.includes('CERTIFICATE')) {
         setValidationResult({
@@ -121,22 +380,8 @@ function CertificateValidator() {
 
       setValidationResult({
         valid: true,
-        certificate: {
-          version: certInfo.version,
-          serialNumber: extractSerialNumber(der),
-          subject: extractSubject(der),
-          issuer: extractIssuer(der),
-          validFrom: extractValidFrom(der),
-          validTo: extractValidTo(der),
-          signatureAlgorithm: extractSignatureAlgorithm(der),
-          publicKeyAlgorithm: extractPublicKeyAlgorithm(der),
-          keyUsage: extractKeyUsage(der),
-          extendedKeyUsage: extractExtendedKeyUsage(der),
-          subjectAltName: extractSubjectAltName(der),
-          basicConstraints: extractBasicConstraints(der),
-          authorityKeyIdentifier: extractAuthorityKeyId(der),
-          subjectKeyIdentifier: extractSubjectKeyId(der)
-        },
+        isChain: false,
+        certificate: certInfo,
         publicKey: publicKeyInfo,
         validityStatus,
         fingerprints: {
@@ -154,61 +399,6 @@ function CertificateValidator() {
     }
   };
 
-  // Helper functions to extract certificate fields
-  const extractSerialNumber = (der) => {
-    // In a real implementation, parse ASN.1 to extract serial number
-    return '0x' + Array.from(der.slice(10, 18)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-  };
-
-  const extractSubject = (der) => {
-    // Simplified extraction - in reality you'd parse the ASN.1 structure
-    return 'CN=EUDI Remote Verifier, O=EUDI Remote Verifier, C=UT';
-  };
-
-  const extractIssuer = (der) => {
-    return 'CN=PID Issuer CA - UT 02, O=EUDI Wallet Reference Implementation, C=UT';
-  };
-
-  const extractValidFrom = (der) => {
-    // Parse validity period from certificate
-    return new Date('2025-04-10T07:53:14Z');
-  };
-
-  const extractValidTo = (der) => {
-    return new Date('2027-04-10T07:53:13Z');
-  };
-
-  const extractSignatureAlgorithm = (der) => {
-    return 'ecdsa-with-SHA256';
-  };
-
-  const extractPublicKeyAlgorithm = (der) => {
-    return 'id-ecPublicKey (P-256)';
-  };
-
-  const extractKeyUsage = (der) => {
-    return ['Digital Signature'];
-  };
-
-  const extractExtendedKeyUsage = (der) => {
-    return ['1.3.6.1.4.1.1466.115.121.1.5.6 (Custom EKU)'];
-  };
-
-  const extractSubjectAltName = (der) => {
-    return ['Email: no-reply@eudiw.dev', 'DNS: dev.verifier-backend.eudiw.dev'];
-  };
-
-  const extractBasicConstraints = (der) => {
-    return 'CA: FALSE';
-  };
-
-  const extractAuthorityKeyId = (der) => {
-    return '62:c7:94:47:28:bd:0f:a2:16:20:a7:9a:c2:49:94:44:f1:01:d3:c7';
-  };
-
-  const extractSubjectKeyId = (der) => {
-    return '29:9e:00:aa:41:f2:92:39:7c:78:cb:e2:e9:f5:66:ce:2a:dd:5a:84';
-  };
 
   const calculateFingerprint = async (der, algorithm) => {
     const hash = await crypto.subtle.digest(algorithm, der);
@@ -240,8 +430,8 @@ function CertificateValidator() {
       <section className="card" style={{ marginTop: '12px' }}>
         <h2>Validate Certificate</h2>
         <p className="muted">
-          Paste or upload a <strong>X.509 Certificate</strong> to decode and validate it. 
-          The validator will parse the certificate structure and display its properties including subject, issuer, validity period, and extensions.
+          Paste or upload <strong>X.509 Certificate(s)</strong> to decode and validate. 
+          Supports single certificates or certificate chains. The validator will parse certificate structure and perform basic chain validation.
         </p>
         <div className="actions" style={{ marginTop: '8px' }}>
           <input 
@@ -282,7 +472,9 @@ function CertificateValidator() {
 
       {validationResult && (
         <section className="card outputs-animated" style={{ marginTop: '12px' }}>
-          <h3 style={{ marginBottom: '12px' }}>Certificate Analysis</h3>
+          <h3 style={{ marginBottom: '12px' }}>
+            {validationResult.isChain ? 'Certificate Chain Analysis' : 'Certificate Analysis'}
+          </h3>
           
           {validationResult.valid ? (
             <div className="validation-success">
@@ -293,7 +485,7 @@ function CertificateValidator() {
                 marginBottom: '12px',
                 display: 'inline-block'
               }}>
-                ✓ Valid Certificate
+                ✓ {validationResult.isChain ? 'Valid Certificate Chain' : 'Valid Certificate'}
               </div>
               
               {validationResult.validityStatus !== 'valid' && (
@@ -309,11 +501,119 @@ function CertificateValidator() {
                 </div>
               )}
               
-              <div className="validation-details" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div className="field">
-                  <strong style={{ minWidth: '150px', display: 'inline-block' }}>Version:</strong>
-                  <span>v{validationResult.certificate.version}</span>
+              {validationResult.isChain ? (
+                /* Certificate Chain Display */
+                <div>
+                  {/* Chain Summary */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ textAlign: 'center', background: 'var(--input-bg)', padding: '8px', borderRadius: '6px' }}>
+                      <div style={{ fontSize: '18px', fontWeight: '600', color: 'var(--ink)' }}>{validationResult.chainValidation.chainLength}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Total Certificates</div>
+                    </div>
+                    <div style={{ textAlign: 'center', background: 'var(--input-bg)', padding: '8px', borderRadius: '6px' }}>
+                      <div style={{ fontSize: '18px', fontWeight: '600', color: '#10b981' }}>{validationResult.chainValidation.validCertificates}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Valid</div>
+                    </div>
+                    <div style={{ textAlign: 'center', background: 'var(--input-bg)', padding: '8px', borderRadius: '6px' }}>
+                      <div style={{ fontSize: '18px', fontWeight: '600', color: validationResult.chainValidation.invalidCertificates > 0 ? '#ef4444' : 'var(--muted)' }}>{validationResult.chainValidation.invalidCertificates}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Invalid</div>
+                    </div>
+                  </div>
+
+                  {/* Chain Issues */}
+                  {validationResult.chainValidation.issues.length > 0 && (
+                    <div style={{ marginBottom: '12px' }}>
+                      <h4 style={{ color: '#ef4444', fontSize: '14px', margin: '0 0 8px 0' }}>Chain Issues</h4>
+                      {validationResult.chainValidation.issues.map((issue, index) => (
+                        <div key={index} style={{ 
+                          color: '#ef4444', 
+                          marginBottom: '4px',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '4px',
+                          fontSize: '12px'
+                        }}>
+                          <span style={{ minWidth: '12px' }}>●</span>
+                          <span>{issue}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Chain Warnings */}
+                  {validationResult.chainValidation.warnings.length > 0 && (
+                    <div style={{ marginBottom: '12px' }}>
+                      <h4 style={{ color: '#f59e0b', fontSize: '14px', margin: '0 0 8px 0' }}>Chain Warnings</h4>
+                      {validationResult.chainValidation.warnings.map((warning, index) => (
+                        <div key={index} style={{ 
+                          color: '#f59e0b', 
+                          marginBottom: '4px',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '4px',
+                          fontSize: '12px'
+                        }}>
+                          <span style={{ minWidth: '12px' }}>●</span>
+                          <span>{warning}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Individual Certificates */}
+                  <div>
+                    <h4 style={{ fontSize: '14px', margin: '16px 0 8px 0' }}>Certificate Details</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {validationResult.certificates.map((cert, index) => (
+                        <div key={index} style={{ 
+                          background: 'var(--input-bg)', 
+                          border: `1px solid ${cert.error ? '#ef4444' : '#10b981'}`,
+                          borderRadius: '6px', 
+                          padding: '8px',
+                          fontSize: '12px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: '600' }}>
+                              Certificate {index + 1}
+                              {cert.basicConstraints === 'CA: TRUE' && cert.subject === cert.issuer && ' (Root CA)'}
+                              {cert.basicConstraints === 'CA: TRUE' && cert.subject !== cert.issuer && ' (Intermediate CA)'}
+                              {cert.basicConstraints === 'CA: FALSE' && ' (End Entity)'}
+                            </span>
+                            <span style={{ 
+                              color: cert.error ? '#ef4444' : '#10b981',
+                              fontSize: '11px',
+                              fontWeight: '500'
+                            }}>
+                              {cert.error ? '✗ Invalid' : '✓ Valid'}
+                            </span>
+                          </div>
+                          {cert.error ? (
+                            <div style={{ color: '#ef4444' }}>{cert.error}</div>
+                          ) : (
+                            <>
+                              <div style={{ color: 'var(--muted)', marginBottom: '2px' }}>
+                                Subject: {cert.subject}
+                              </div>
+                              <div style={{ color: 'var(--muted)', marginBottom: '2px' }}>
+                                Issuer: {cert.issuer}
+                              </div>
+                              <div style={{ color: 'var(--muted)' }}>
+                                Valid: {cert.validFrom?.toLocaleDateString()} - {cert.validTo?.toLocaleDateString()}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+              ) : (
+                /* Single Certificate Display */
+                <div className="validation-details" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div className="field">
+                    <strong style={{ minWidth: '150px', display: 'inline-block' }}>Version:</strong>
+                    <span>v{validationResult.certificate.version}</span>
+                  </div>
                 
                 <div className="field">
                   <strong style={{ minWidth: '150px', display: 'inline-block' }}>Serial Number:</strong>
@@ -423,7 +723,8 @@ function CertificateValidator() {
                     {validationResult.fingerprints.sha256}
                   </span>
                 </div>
-              </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="validation-error">

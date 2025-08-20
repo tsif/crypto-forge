@@ -3,6 +3,7 @@ import Controls from './components/Controls';
 import OutputCard from './components/OutputCard';
 import PemConverter from './components/PemConverter';
 import KeyValidator from './components/KeyValidator';
+import JwksValidator from './components/JwksValidator';
 import CertificateValidator from './components/CertificateValidator';
 import SegmentedControl from './components/SegmentedControl';
 import ThemeToggle from './components/ThemeToggle';
@@ -408,6 +409,10 @@ function App() {
 
         {activeTab === 'validate-jwk' && (
           <KeyValidator />
+        )}
+
+        {activeTab === 'validate-jwks' && (
+          <JwksValidator />
         )}
 
         {activeTab === 'validate-cert' && (
