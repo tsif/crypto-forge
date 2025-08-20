@@ -3,8 +3,7 @@ import OutputCard from './OutputCard';
 import Spinner from './Spinner';
 import KeyStrengthAnalyzer from './KeyStrengthAnalyzer';
 
-function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, error, showToast }) {
-  const [pemInput, setPemInput] = useState('');
+function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, error, showToast, pemInput, setPemInput }) {
   const [inputError, setInputError] = useState(null);
 
   const validatePemInput = (input) => {
@@ -63,7 +62,6 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
   };
 
   const handleClear = () => {
-    setPemInput('');
     setInputError(null);
     if (onClearOutputs) {
       onClearOutputs();

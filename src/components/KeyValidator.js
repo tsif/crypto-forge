@@ -3,9 +3,16 @@ import * as cryptoUtils from '../utils/cryptoUtils';
 import Spinner from './Spinner';
 import KeyStrengthAnalyzer from './KeyStrengthAnalyzer';
 
-function KeyValidator() {
-  const [keyInput, setKeyInput] = useState('');
-  const [validationResult, setValidationResult] = useState(null);
+function KeyValidator({ keyInput = '', setKeyInput, validationResult = null, setValidationResult }) {
+  // Use props if provided, otherwise fall back to local state for backward compatibility
+  const [localKeyInput, setLocalKeyInput] = useState('');
+  const [localValidationResult, setLocalValidationResult] = useState(null);
+  
+  const input = setKeyInput ? keyInput : localKeyInput;
+  const setInput = setKeyInput || setLocalKeyInput;
+  const result = setValidationResult ? validationResult : localValidationResult;
+  const setResult = setValidationResult || setLocalValidationResult;
+  
   const [isValidating, setIsValidating] = useState(false);
   const [inputError, setInputError] = useState(null);
 
@@ -37,22 +44,22 @@ function KeyValidator() {
 
   const handleInputChange = (e) => {
     const value = e.target.value;
-    setKeyInput(value);
+    setInput(value);
     validateInput(value);
   };
 
 
   const validateKey = async () => {
     setIsValidating(true);
-    setValidationResult(null);
+    setResult(null);
 
     try {
       // Parse the JWK JSON
       let jwk;
       try {
-        jwk = JSON.parse(keyInput.trim());
+        jwk = JSON.parse(input.trim());
       } catch (e) {
-        setValidationResult({
+        setResult({
           valid: false,
           error: 'Invalid JSON format. Please paste a valid JWK (JSON Web Key).'
         });
@@ -61,7 +68,7 @@ function KeyValidator() {
 
       // Check if it's a valid JWK structure
       if (!jwk.kty) {
-        setValidationResult({
+        setResult({
           valid: false,
           error: 'Invalid JWK: missing "kty" (key type) parameter.'
         });
@@ -172,7 +179,7 @@ function KeyValidator() {
           throw new Error('Failed to import key with any supported algorithm');
         }
       } catch (importError) {
-        setValidationResult({
+        setResult({
           valid: false,
           error: `Failed to import JWK: ${importError.message}`
         });
@@ -215,9 +222,9 @@ function KeyValidator() {
       details.thumbprint = await cryptoUtils.jwkThumbprint(publicJwk);
       details.publicJwkObject = publicJwk;
 
-      setValidationResult(details);
+      setResult(details);
     } catch (error) {
-      setValidationResult({
+      setResult({
         valid: false,
         error: error.message || 'An error occurred while validating the key.'
       });
@@ -227,8 +234,8 @@ function KeyValidator() {
   };
 
   const handleClear = () => {
-    setKeyInput('');
-    setValidationResult(null);
+    setInput('');
+    setResult(null);
     setInputError(null);
   };
 
@@ -244,7 +251,7 @@ function KeyValidator() {
           <button 
             className="btn primary" 
             onClick={validateKey} 
-            disabled={isValidating || !keyInput.trim()}
+            disabled={isValidating || !input.trim()}
           >
             {isValidating && <Spinner size={16} />}
             Validate JWK
@@ -257,9 +264,9 @@ function KeyValidator() {
           </button>
         </div>
         <div className="space"></div>
-        <div className={`field ${inputError ? 'field-error' : (keyInput.trim() && !inputError ? 'field-success' : '')}`}>
+        <div className={`field ${inputError ? 'field-error' : (input.trim() && !inputError ? 'field-success' : '')}`}>
           <textarea 
-            value={keyInput}
+            value={input}
             onChange={handleInputChange}
             placeholder={`{\n  "kty": "RSA",\n  "n": "...",\n  "e": "AQAB",\n  "d": "...",\n  "alg": "RS256",\n  "use": "sig"\n}\n\nor\n\n{\n  "kty": "EC",\n  "crv": "P-256",\n  "x": "...",\n  "y": "...",\n  "d": "...",\n  "alg": "ES256",\n  "use": "sig"\n}`}
             style={{ minHeight: '200px' }}
@@ -272,11 +279,11 @@ function KeyValidator() {
         </div>
       </section>
 
-      {validationResult && (
+      {result && (
         <section className="card outputs-animated" style={{ marginTop: '12px' }}>
           <h3 style={{ marginBottom: '12px' }}>Validation Result</h3>
           
-          {validationResult.valid ? (
+          {result.valid ? (
             <div className="validation-success">
               <div className="badge" style={{ 
                 background: 'var(--badge-bg)', 
@@ -291,39 +298,39 @@ function KeyValidator() {
               <div className="validation-details" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div className="field">
                   <strong style={{ minWidth: '120px', display: 'inline-block' }}>Type:</strong>
-                  <span>{validationResult.keyType}</span>
+                  <span>{result.keyType}</span>
                 </div>
                 <div className="field">
                   <strong style={{ minWidth: '120px', display: 'inline-block' }}>Key Nature:</strong>
-                  <span>{validationResult.isPrivate ? 'Private Key' : 'Public Key'}</span>
+                  <span>{result.isPrivate ? 'Private Key' : 'Public Key'}</span>
                 </div>
                 <div className="field">
                   <strong style={{ minWidth: '120px', display: 'inline-block' }}>Algorithm:</strong>
-                  <span>{validationResult.algorithm}</span>
+                  <span>{result.algorithm}</span>
                 </div>
                 
-                {validationResult.jwk.alg && (
+                {result.jwk.alg && (
                   <div className="field">
                     <strong style={{ minWidth: '120px', display: 'inline-block' }}>JWK Algorithm:</strong>
-                    <span>{validationResult.jwk.alg}</span>
+                    <span>{result.jwk.alg}</span>
                   </div>
                 )}
                 
-                {validationResult.jwk.use && (
+                {result.jwk.use && (
                   <div className="field">
                     <strong style={{ minWidth: '120px', display: 'inline-block' }}>Key Use:</strong>
-                    <span>{validationResult.jwk.use} ({validationResult.jwk.use === 'sig' ? 'Signature' : 'Encryption'})</span>
+                    <span>{result.jwk.use} ({result.jwk.use === 'sig' ? 'Signature' : 'Encryption'})</span>
                   </div>
                 )}
                 
-                {validationResult.jwk.key_ops && (
+                {result.jwk.key_ops && (
                   <div className="field">
                     <strong style={{ minWidth: '120px', display: 'inline-block' }}>Key Operations:</strong>
-                    <span>{Array.isArray(validationResult.jwk.key_ops) ? validationResult.jwk.key_ops.join(', ') : validationResult.jwk.key_ops}</span>
+                    <span>{Array.isArray(result.jwk.key_ops) ? result.jwk.key_ops.join(', ') : result.jwk.key_ops}</span>
                   </div>
                 )}
                 
-                {validationResult.jwk.kid && (
+                {result.jwk.kid && (
                   <div className="field">
                     <strong style={{ minWidth: '120px', display: 'inline-block' }}>Key ID:</strong>
                     <span style={{ 
@@ -331,47 +338,47 @@ function KeyValidator() {
                       fontSize: '12px',
                       wordBreak: 'break-all'
                     }}>
-                      {validationResult.jwk.kid}
+                      {result.jwk.kid}
                     </span>
                   </div>
                 )}
                 
-                {validationResult.rsaDetails && (
+                {result.rsaDetails && (
                   <>
                     <div className="field">
                       <strong style={{ minWidth: '120px', display: 'inline-block' }}>Modulus:</strong>
-                      <span>{validationResult.rsaDetails.modulusLength} bits</span>
+                      <span>{result.rsaDetails.modulusLength} bits</span>
                     </div>
                     <div className="field">
                       <strong style={{ minWidth: '120px', display: 'inline-block' }}>Hash:</strong>
-                      <span>{validationResult.rsaDetails.hash}</span>
+                      <span>{result.rsaDetails.hash}</span>
                     </div>
                     <div className="field">
                       <strong style={{ minWidth: '120px', display: 'inline-block' }}>Public Exponent:</strong>
-                      <span>{validationResult.rsaDetails.publicExponent}</span>
+                      <span>{result.rsaDetails.publicExponent}</span>
                     </div>
                   </>
                 )}
                 
-                {validationResult.ecDetails && (
+                {result.ecDetails && (
                   <>
                     <div className="field">
                       <strong style={{ minWidth: '120px', display: 'inline-block' }}>Curve:</strong>
-                      <span>{validationResult.ecDetails.curve}</span>
+                      <span>{result.ecDetails.curve}</span>
                     </div>
-                    {validationResult.ecDetails.x && (
+                    {result.ecDetails.x && (
                       <div className="field">
                         <strong style={{ minWidth: '120px', display: 'inline-block' }}>X Coordinate:</strong>
                         <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: '12px' }}>
-                          {validationResult.ecDetails.x}
+                          {result.ecDetails.x}
                         </span>
                       </div>
                     )}
-                    {validationResult.ecDetails.y && (
+                    {result.ecDetails.y && (
                       <div className="field">
                         <strong style={{ minWidth: '120px', display: 'inline-block' }}>Y Coordinate:</strong>
                         <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: '12px' }}>
-                          {validationResult.ecDetails.y}
+                          {result.ecDetails.y}
                         </span>
                       </div>
                     )}
@@ -385,7 +392,7 @@ function KeyValidator() {
                     fontSize: '12px',
                     wordBreak: 'break-all'
                   }}>
-                    {validationResult.thumbprint}
+                    {result.thumbprint}
                   </span>
                 </div>
               </div>
@@ -401,15 +408,15 @@ function KeyValidator() {
               }}>
                 ✗ Invalid Key
               </div>
-              <p className="muted">{validationResult.error}</p>
+              <p className="muted">{result.error}</p>
             </div>
           )}
         </section>
       )}
 
-      {validationResult && validationResult.valid && validationResult.publicJwkObject && (
+      {result && result.valid && result.publicJwkObject && (
         <section className="card outputs-animated" style={{ marginTop: '12px' }}>
-          <KeyStrengthAnalyzer jwk={validationResult.publicJwkObject} />
+          <KeyStrengthAnalyzer jwk={result.publicJwkObject} />
         </section>
       )}
     </>

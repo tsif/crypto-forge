@@ -4,9 +4,16 @@ import Spinner from './Spinner';
 import { ASN1Parser, parseOid, parseTime, parseString, parseInteger, parseBitString, parseDN } from '../utils/asn1Parser';
 import { CertificateChainValidator } from '../utils/certChainValidator';
 
-function CertificateValidator() {
-  const [certInput, setCertInput] = useState('');
-  const [validationResult, setValidationResult] = useState(null);
+function CertificateValidator({ certInput = '', setCertInput, validationResult = null, setValidationResult }) {
+  // Use props if provided, otherwise fall back to local state for backward compatibility
+  const [localCertInput, setLocalCertInput] = useState('');
+  const [localValidationResult, setLocalValidationResult] = useState(null);
+  
+  const input = setCertInput ? certInput : localCertInput;
+  const setInput = setCertInput || setLocalCertInput;
+  const result = setValidationResult ? validationResult : localValidationResult;
+  const setResult = setValidationResult || setLocalValidationResult;
+  
   const [isValidating, setIsValidating] = useState(false);
   const [inputError, setInputError] = useState(null);
 
@@ -40,7 +47,7 @@ function CertificateValidator() {
 
   const handleInputChange = (e) => {
     const value = e.target.value;
-    setCertInput(value);
+    setInput(value);
     validateCertInput(value);
   };
 
@@ -48,7 +55,7 @@ function CertificateValidator() {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const text = await file.text();
-    setCertInput(text);
+    setInput(text);
     validateCertInput(text);
   };
 
@@ -291,16 +298,16 @@ function CertificateValidator() {
 
   const validateCertificate = async () => {
     setIsValidating(true);
-    setValidationResult(null);
+    setResult(null);
 
     try {
-      const inputText = certInput.trim();
+      const inputText = input.trim();
       
       // Check if this is a certificate chain (multiple certificates)
       const certBlocks = inputText.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g);
       
       if (!certBlocks || certBlocks.length === 0) {
-        setValidationResult({
+        setResult({
           valid: false,
           error: 'Invalid certificate format. Expected "BEGIN CERTIFICATE" block.'
         });
@@ -327,7 +334,7 @@ function CertificateValidator() {
           }
         }
         
-        setValidationResult({
+        setResult({
           valid: chainValidation.valid,
           isChain: true,
           chainValidation,
@@ -345,7 +352,7 @@ function CertificateValidator() {
       const { der, label } = cryptoUtils.pemToDer(inputText);
       
       if (!label.includes('CERTIFICATE')) {
-        setValidationResult({
+        setResult({
           valid: false,
           error: 'Invalid certificate format. Expected "BEGIN CERTIFICATE" block.'
         });
@@ -378,7 +385,7 @@ function CertificateValidator() {
       const validityStatus = isExpired ? 'expired' : 
                            isNotYetValid ? 'not-yet-valid' : 'valid';
 
-      setValidationResult({
+      setResult({
         valid: true,
         isChain: false,
         certificate: certInfo,
@@ -390,7 +397,7 @@ function CertificateValidator() {
         }
       });
     } catch (error) {
-      setValidationResult({
+      setResult({
         valid: false,
         error: error.message || 'An error occurred while validating the certificate.'
       });
@@ -409,8 +416,8 @@ function CertificateValidator() {
   };
 
   const handleClear = () => {
-    setCertInput('');
-    setValidationResult(null);
+    setInput('');
+    setResult(null);
     setInputError(null);
   };
 
@@ -442,7 +449,7 @@ function CertificateValidator() {
           <button 
             className="btn primary" 
             onClick={validateCertificate} 
-            disabled={isValidating || !certInput.trim()}
+            disabled={isValidating || !input.trim()}
           >
             {isValidating && <Spinner size={16} />}
             Validate Certificate
@@ -455,9 +462,9 @@ function CertificateValidator() {
           </button>
         </div>
         <div className="space"></div>
-        <div className={`field ${inputError ? 'field-error' : (certInput.trim() && !inputError ? 'field-success' : '')}`}>
+        <div className={`field ${inputError ? 'field-error' : (input.trim() && !inputError ? 'field-success' : '')}`}>
           <textarea 
-            value={certInput}
+            value={input}
             onChange={handleInputChange}
             placeholder={`-----BEGIN CERTIFICATE-----\nMIIDEDCCAragAwIBAgIUE1oN09EvmTiIbgp1+U580bHJB+MwCgYIKoZIzj0EAwIw...\n-----END CERTIFICATE-----`}
             style={{ minHeight: '200px' }}
@@ -470,13 +477,13 @@ function CertificateValidator() {
         </div>
       </section>
 
-      {validationResult && (
+      {result && (
         <section className="card outputs-animated" style={{ marginTop: '12px' }}>
           <h3 style={{ marginBottom: '12px' }}>
-            {validationResult.isChain ? 'Certificate Chain Analysis' : 'Certificate Analysis'}
+            {result.isChain ? 'Certificate Chain Analysis' : 'Certificate Analysis'}
           </h3>
           
-          {validationResult.valid ? (
+          {result.valid ? (
             <div className="validation-success">
               <div className="badge" style={{ 
                 background: 'var(--badge-bg)', 
@@ -485,10 +492,10 @@ function CertificateValidator() {
                 marginBottom: '12px',
                 display: 'inline-block'
               }}>
-                ✓ {validationResult.isChain ? 'Valid Certificate Chain' : 'Valid Certificate'}
+                ✓ {result.isChain ? 'Valid Certificate Chain' : 'Valid Certificate'}
               </div>
               
-              {validationResult.validityStatus !== 'valid' && (
+              {result.validityStatus !== 'valid' && (
                 <div className="badge" style={{ 
                   background: 'var(--badge-bg)', 
                   color: '#f59e0b',
@@ -497,34 +504,34 @@ function CertificateValidator() {
                   marginLeft: '8px',
                   display: 'inline-block'
                 }}>
-                  ⚠ {validationResult.validityStatus === 'expired' ? 'Expired' : 'Not Yet Valid'}
+                  ⚠ {result.validityStatus === 'expired' ? 'Expired' : 'Not Yet Valid'}
                 </div>
               )}
               
-              {validationResult.isChain ? (
+              {result.isChain ? (
                 /* Certificate Chain Display */
                 <div>
                   {/* Chain Summary */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '16px' }}>
                     <div style={{ textAlign: 'center', background: 'var(--input-bg)', padding: '8px', borderRadius: '6px' }}>
-                      <div style={{ fontSize: '18px', fontWeight: '600', color: 'var(--ink)' }}>{validationResult.chainValidation.chainLength}</div>
+                      <div style={{ fontSize: '18px', fontWeight: '600', color: 'var(--ink)' }}>{result.chainValidation.chainLength}</div>
                       <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Total Certificates</div>
                     </div>
                     <div style={{ textAlign: 'center', background: 'var(--input-bg)', padding: '8px', borderRadius: '6px' }}>
-                      <div style={{ fontSize: '18px', fontWeight: '600', color: '#10b981' }}>{validationResult.chainValidation.validCertificates}</div>
+                      <div style={{ fontSize: '18px', fontWeight: '600', color: '#10b981' }}>{result.chainValidation.validCertificates}</div>
                       <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Valid</div>
                     </div>
                     <div style={{ textAlign: 'center', background: 'var(--input-bg)', padding: '8px', borderRadius: '6px' }}>
-                      <div style={{ fontSize: '18px', fontWeight: '600', color: validationResult.chainValidation.invalidCertificates > 0 ? '#ef4444' : 'var(--muted)' }}>{validationResult.chainValidation.invalidCertificates}</div>
+                      <div style={{ fontSize: '18px', fontWeight: '600', color: result.chainValidation.invalidCertificates > 0 ? '#ef4444' : 'var(--muted)' }}>{result.chainValidation.invalidCertificates}</div>
                       <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Invalid</div>
                     </div>
                   </div>
 
                   {/* Chain Issues */}
-                  {validationResult.chainValidation.issues.length > 0 && (
+                  {result.chainValidation.issues.length > 0 && (
                     <div style={{ marginBottom: '12px' }}>
                       <h4 style={{ color: '#ef4444', fontSize: '14px', margin: '0 0 8px 0' }}>Chain Issues</h4>
-                      {validationResult.chainValidation.issues.map((issue, index) => (
+                      {result.chainValidation.issues.map((issue, index) => (
                         <div key={index} style={{ 
                           color: '#ef4444', 
                           marginBottom: '4px',
@@ -541,10 +548,10 @@ function CertificateValidator() {
                   )}
 
                   {/* Chain Warnings */}
-                  {validationResult.chainValidation.warnings.length > 0 && (
+                  {result.chainValidation.warnings.length > 0 && (
                     <div style={{ marginBottom: '12px' }}>
                       <h4 style={{ color: '#f59e0b', fontSize: '14px', margin: '0 0 8px 0' }}>Chain Warnings</h4>
-                      {validationResult.chainValidation.warnings.map((warning, index) => (
+                      {result.chainValidation.warnings.map((warning, index) => (
                         <div key={index} style={{ 
                           color: '#f59e0b', 
                           marginBottom: '4px',
@@ -564,7 +571,7 @@ function CertificateValidator() {
                   <div>
                     <h4 style={{ fontSize: '14px', margin: '16px 0 8px 0' }}>Certificate Details</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {validationResult.certificates.map((cert, index) => (
+                      {result.certificates.map((cert, index) => (
                         <div key={index} style={{ 
                           background: 'var(--input-bg)', 
                           border: `1px solid ${cert.error ? '#ef4444' : '#10b981'}`,
@@ -612,72 +619,72 @@ function CertificateValidator() {
                 <div className="validation-details" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div className="field">
                     <strong style={{ minWidth: '150px', display: 'inline-block' }}>Version:</strong>
-                    <span>v{validationResult.certificate.version}</span>
+                    <span>v{result.certificate.version}</span>
                   </div>
                 
                 <div className="field">
                   <strong style={{ minWidth: '150px', display: 'inline-block' }}>Serial Number:</strong>
                   <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: '12px' }}>
-                    {validationResult.certificate.serialNumber}
+                    {result.certificate.serialNumber}
                   </span>
                 </div>
                 
                 <div className="field">
                   <strong style={{ minWidth: '150px', display: 'inline-block' }}>Subject:</strong>
-                  <span>{validationResult.certificate.subject}</span>
+                  <span>{result.certificate.subject}</span>
                 </div>
                 
                 <div className="field">
                   <strong style={{ minWidth: '150px', display: 'inline-block' }}>Issuer:</strong>
-                  <span>{validationResult.certificate.issuer}</span>
+                  <span>{result.certificate.issuer}</span>
                 </div>
                 
                 <div className="field">
                   <strong style={{ minWidth: '150px', display: 'inline-block' }}>Valid From:</strong>
-                  <span>{formatDate(validationResult.certificate.validFrom)}</span>
+                  <span>{formatDate(result.certificate.validFrom)}</span>
                 </div>
                 
                 <div className="field">
                   <strong style={{ minWidth: '150px', display: 'inline-block' }}>Valid To:</strong>
-                  <span>{formatDate(validationResult.certificate.validTo)}</span>
+                  <span>{formatDate(result.certificate.validTo)}</span>
                 </div>
                 
                 <div className="field">
                   <strong style={{ minWidth: '150px', display: 'inline-block' }}>Signature Algorithm:</strong>
-                  <span>{validationResult.certificate.signatureAlgorithm}</span>
+                  <span>{result.certificate.signatureAlgorithm}</span>
                 </div>
                 
                 <div className="field">
                   <strong style={{ minWidth: '150px', display: 'inline-block' }}>Public Key Algorithm:</strong>
-                  <span>{validationResult.certificate.publicKeyAlgorithm}</span>
+                  <span>{result.certificate.publicKeyAlgorithm}</span>
                 </div>
                 
-                {validationResult.certificate.keyUsage?.length > 0 && (
+                {result.certificate.keyUsage?.length > 0 && (
                   <div className="field">
                     <strong style={{ minWidth: '150px', display: 'inline-block' }}>Key Usage:</strong>
-                    <span>{validationResult.certificate.keyUsage.join(', ')}</span>
+                    <span>{result.certificate.keyUsage.join(', ')}</span>
                   </div>
                 )}
                 
-                {validationResult.certificate.extendedKeyUsage?.length > 0 && (
+                {result.certificate.extendedKeyUsage?.length > 0 && (
                   <div className="field">
                     <strong style={{ minWidth: '150px', display: 'inline-block' }}>Extended Key Usage:</strong>
                     <span style={{ fontSize: '12px' }}>
-                      {validationResult.certificate.extendedKeyUsage.join(', ')}
+                      {result.certificate.extendedKeyUsage.join(', ')}
                     </span>
                   </div>
                 )}
                 
-                {validationResult.certificate.subjectAltName?.length > 0 && (
+                {result.certificate.subjectAltName?.length > 0 && (
                   <div className="field">
                     <strong style={{ minWidth: '150px', display: 'inline-block' }}>Subject Alt Name:</strong>
-                    <span>{validationResult.certificate.subjectAltName.join(', ')}</span>
+                    <span>{result.certificate.subjectAltName.join(', ')}</span>
                   </div>
                 )}
                 
                 <div className="field">
                   <strong style={{ minWidth: '150px', display: 'inline-block' }}>Basic Constraints:</strong>
-                  <span>{validationResult.certificate.basicConstraints}</span>
+                  <span>{result.certificate.basicConstraints}</span>
                 </div>
                 
                 <div className="field">
@@ -687,7 +694,7 @@ function CertificateValidator() {
                     fontSize: '11px',
                     wordBreak: 'break-all'
                   }}>
-                    {validationResult.certificate.authorityKeyIdentifier}
+                    {result.certificate.authorityKeyIdentifier}
                   </span>
                 </div>
                 
@@ -698,7 +705,7 @@ function CertificateValidator() {
                     fontSize: '11px',
                     wordBreak: 'break-all'
                   }}>
-                    {validationResult.certificate.subjectKeyIdentifier}
+                    {result.certificate.subjectKeyIdentifier}
                   </span>
                 </div>
                 
@@ -709,7 +716,7 @@ function CertificateValidator() {
                     fontSize: '11px',
                     wordBreak: 'break-all'
                   }}>
-                    {validationResult.fingerprints.sha1}
+                    {result.fingerprints.sha1}
                   </span>
                 </div>
                 
@@ -720,7 +727,7 @@ function CertificateValidator() {
                     fontSize: '11px',
                     wordBreak: 'break-all'
                   }}>
-                    {validationResult.fingerprints.sha256}
+                    {result.fingerprints.sha256}
                   </span>
                 </div>
                 </div>
@@ -737,7 +744,7 @@ function CertificateValidator() {
               }}>
                 ✗ Invalid Certificate
               </div>
-              <p className="muted">{validationResult.error}</p>
+              <p className="muted">{result.error}</p>
             </div>
           )}
         </section>

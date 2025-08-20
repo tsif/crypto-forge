@@ -113,6 +113,25 @@ function App() {
   });
 
   const [pemConversionError, setPemConversionError] = useState(null);
+  
+  // Input states for persistence across tab switches
+  const [pemInput, setPemInput] = useState('');
+  
+  // Validation states for persistence
+  const [keyValidatorState, setKeyValidatorState] = useState({
+    keyInput: '',
+    validationResult: null
+  });
+  
+  const [jwksValidatorState, setJwksValidatorState] = useState({
+    jwksInput: '',
+    validationResult: null
+  });
+  
+  const [certValidatorState, setCertValidatorState] = useState({
+    certInput: '',
+    validationResult: null
+  });
 
   const getAlg = () => {
     if (algorithm === 'RSA') {
@@ -156,6 +175,7 @@ function App() {
       publicJwkObject: null
     });
     setPemConversionError(null);
+    setPemInput('');
   };
 
   const generateKeys = async () => {
@@ -472,19 +492,36 @@ function App() {
             onClearOutputs={clearPemOutputs}
             error={pemConversionError}
             showToast={showToast}
+            pemInput={pemInput}
+            setPemInput={setPemInput}
           />
         )}
 
         {activeTab === 'validate-jwk' && (
-          <KeyValidator />
+          <KeyValidator 
+            keyInput={keyValidatorState.keyInput}
+            setKeyInput={(input) => setKeyValidatorState(prev => ({ ...prev, keyInput: input }))}
+            validationResult={keyValidatorState.validationResult}
+            setValidationResult={(result) => setKeyValidatorState(prev => ({ ...prev, validationResult: result }))}
+          />
         )}
 
         {activeTab === 'validate-jwks' && (
-          <JwksValidator />
+          <JwksValidator 
+            jwksInput={jwksValidatorState.jwksInput}
+            setJwksInput={(input) => setJwksValidatorState(prev => ({ ...prev, jwksInput: input }))}
+            validationResult={jwksValidatorState.validationResult}
+            setValidationResult={(result) => setJwksValidatorState(prev => ({ ...prev, validationResult: result }))}
+          />
         )}
 
         {activeTab === 'validate-cert' && (
-          <CertificateValidator />
+          <CertificateValidator 
+            certInput={certValidatorState.certInput}
+            setCertInput={(input) => setCertValidatorState(prev => ({ ...prev, certInput: input }))}
+            validationResult={certValidatorState.validationResult}
+            setValidationResult={(result) => setCertValidatorState(prev => ({ ...prev, validationResult: result }))}
+          />
         )}
 
       <section id="notes" className="stack mobile-only" style={{ marginTop: '8px' }}>

@@ -3,9 +3,16 @@ import * as cryptoUtils from '../utils/cryptoUtils';
 import Spinner from './Spinner';
 import KeyStrengthAnalyzer from './KeyStrengthAnalyzer';
 
-function JwksValidator() {
-  const [jwksInput, setJwksInput] = useState('');
-  const [validationResult, setValidationResult] = useState(null);
+function JwksValidator({ jwksInput = '', setJwksInput, validationResult = null, setValidationResult }) {
+  // Use props if provided, otherwise fall back to local state for backward compatibility
+  const [localJwksInput, setLocalJwksInput] = useState('');
+  const [localValidationResult, setLocalValidationResult] = useState(null);
+  
+  const input = setJwksInput ? jwksInput : localJwksInput;
+  const setInput = setJwksInput || setLocalJwksInput;
+  const result = setValidationResult ? validationResult : localValidationResult;
+  const setResult = setValidationResult || setLocalValidationResult;
+  
   const [isValidating, setIsValidating] = useState(false);
   const [inputError, setInputError] = useState(null);
 
@@ -37,21 +44,21 @@ function JwksValidator() {
 
   const handleInputChange = (e) => {
     const value = e.target.value;
-    setJwksInput(value);
+    setInput(value);
     validateJwksInput(value);
   };
 
   const validateJwks = async () => {
     setIsValidating(true);
-    setValidationResult(null);
+    setResult(null);
 
     try {
       // Parse the JWKS JSON
       let jwks;
       try {
-        jwks = JSON.parse(jwksInput.trim());
+        jwks = JSON.parse(input.trim());
       } catch (e) {
-        setValidationResult({
+        setResult({
           valid: false,
           error: 'Invalid JSON format. Please paste a valid JWKS (JSON Web Key Set).'
         });
@@ -60,7 +67,7 @@ function JwksValidator() {
 
       // Validate JWKS structure
       if (!jwks.keys) {
-        setValidationResult({
+        setResult({
           valid: false,
           error: 'Invalid JWKS: missing "keys" array.'
         });
@@ -68,7 +75,7 @@ function JwksValidator() {
       }
 
       if (!Array.isArray(jwks.keys)) {
-        setValidationResult({
+        setResult({
           valid: false,
           error: 'Invalid JWKS: "keys" must be an array.'
         });
@@ -76,7 +83,7 @@ function JwksValidator() {
       }
 
       if (jwks.keys.length === 0) {
-        setValidationResult({
+        setResult({
           valid: false,
           error: 'Invalid JWKS: must contain at least one key.'
         });
@@ -295,7 +302,7 @@ function JwksValidator() {
       const validKeys = keyResults.filter(k => k.valid);
       const invalidKeys = keyResults.filter(k => !k.valid);
       
-      setValidationResult({
+      setResult({
         valid: invalidKeys.length === 0,
         keyCount: jwks.keys.length,
         validKeys: validKeys.length,
@@ -310,7 +317,7 @@ function JwksValidator() {
       });
 
     } catch (error) {
-      setValidationResult({
+      setResult({
         valid: false,
         error: error.message || 'An error occurred while validating the JWKS.'
       });
@@ -320,8 +327,8 @@ function JwksValidator() {
   };
 
   const handleClear = () => {
-    setJwksInput('');
-    setValidationResult(null);
+    setInput('');
+    setResult(null);
     setInputError(null);
   };
 
@@ -337,7 +344,7 @@ function JwksValidator() {
           <button 
             className="btn primary" 
             onClick={validateJwks} 
-            disabled={isValidating || !jwksInput.trim()}
+            disabled={isValidating || !input.trim()}
           >
             {isValidating && <Spinner size={16} />}
             Validate JWKS
@@ -350,9 +357,9 @@ function JwksValidator() {
           </button>
         </div>
         <div className="space"></div>
-        <div className={`field ${inputError ? 'field-error' : (jwksInput.trim() && !inputError ? 'field-success' : '')}`}>
+        <div className={`field ${inputError ? 'field-error' : (input.trim() && !inputError ? 'field-success' : '')}`}>
           <textarea 
-            value={jwksInput}
+            value={input}
             onChange={handleInputChange}
             placeholder={`{\n  "keys": [\n    {\n      "kty": "RSA",\n      "n": "...",\n      "e": "AQAB",\n      "kid": "key1",\n      "alg": "RS256",\n      "use": "sig"\n    },\n    {\n      "kty": "EC",\n      "crv": "P-256",\n      "x": "...",\n      "y": "...",\n      "kid": "key2",\n      "alg": "ES256",\n      "use": "sig"\n    }\n  ]\n}`}
             style={{ minHeight: '200px' }}
@@ -365,11 +372,11 @@ function JwksValidator() {
         </div>
       </section>
 
-      {validationResult && (
+      {result && (
         <section className="card outputs-animated" style={{ marginTop: '12px' }}>
           <h3 style={{ marginBottom: '12px' }}>JWKS Validation Result</h3>
           
-          {validationResult.valid ? (
+          {result.valid ? (
             <div className="validation-success">
               <div className="badge" style={{ 
                 background: 'var(--badge-bg)', 
@@ -384,19 +391,19 @@ function JwksValidator() {
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '12px' }}>
                   <div style={{ textAlign: 'center', background: 'var(--input-bg)', padding: '8px', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '18px', fontWeight: '600', color: 'var(--ink)' }}>{validationResult.keyCount}</div>
+                    <div style={{ fontSize: '18px', fontWeight: '600', color: 'var(--ink)' }}>{result.keyCount}</div>
                     <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Total Keys</div>
                   </div>
                   <div style={{ textAlign: 'center', background: 'var(--input-bg)', padding: '8px', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '18px', fontWeight: '600', color: '#10b981' }}>{validationResult.validKeys}</div>
+                    <div style={{ fontSize: '18px', fontWeight: '600', color: '#10b981' }}>{result.validKeys}</div>
                     <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Valid</div>
                   </div>
                   <div style={{ textAlign: 'center', background: 'var(--input-bg)', padding: '8px', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '18px', fontWeight: '600', color: validationResult.invalidKeys > 0 ? '#ef4444' : 'var(--muted)' }}>{validationResult.invalidKeys}</div>
+                    <div style={{ fontSize: '18px', fontWeight: '600', color: result.invalidKeys > 0 ? '#ef4444' : 'var(--muted)' }}>{result.invalidKeys}</div>
                     <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Invalid</div>
                   </div>
                   <div style={{ textAlign: 'center', background: 'var(--input-bg)', padding: '8px', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '18px', fontWeight: '600', color: 'var(--ink)' }}>{validationResult.uniqueKeyIds}</div>
+                    <div style={{ fontSize: '18px', fontWeight: '600', color: 'var(--ink)' }}>{result.uniqueKeyIds}</div>
                     <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Unique IDs</div>
                   </div>
                 </div>
@@ -413,15 +420,15 @@ function JwksValidator() {
               }}>
                 ✗ Invalid JWKS
               </div>
-              <p className="muted">{validationResult.error}</p>
+              <p className="muted">{result.error}</p>
             </div>
           )}
 
           {/* Errors */}
-          {validationResult.errors && validationResult.errors.length > 0 && (
+          {result.errors && result.errors.length > 0 && (
             <div style={{ marginBottom: '12px' }}>
               <h4 style={{ color: '#ef4444', fontSize: '14px', margin: '0 0 8px 0' }}>Security Issues</h4>
-              {validationResult.errors.map((error, index) => (
+              {result.errors.map((error, index) => (
                 <div key={index} style={{ 
                   color: '#ef4444', 
                   marginBottom: '4px',
@@ -438,10 +445,10 @@ function JwksValidator() {
           )}
 
           {/* Warnings */}
-          {validationResult.warnings && validationResult.warnings.length > 0 && (
+          {result.warnings && result.warnings.length > 0 && (
             <div style={{ marginBottom: '12px' }}>
               <h4 style={{ color: '#f59e0b', fontSize: '14px', margin: '0 0 8px 0' }}>Recommendations</h4>
-              {validationResult.warnings.map((warning, index) => (
+              {result.warnings.map((warning, index) => (
                 <div key={index} style={{ 
                   color: '#f59e0b', 
                   marginBottom: '4px',
@@ -458,11 +465,11 @@ function JwksValidator() {
           )}
 
           {/* Individual Key Results */}
-          {validationResult.keyResults && (
+          {result.keyResults && (
             <div>
               <h4 style={{ fontSize: '14px', margin: '16px 0 8px 0' }}>Individual Key Analysis</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {validationResult.keyResults.map((keyResult, index) => (
+                {result.keyResults.map((keyResult, index) => (
                   <div key={index} style={{ 
                     background: 'var(--input-bg)', 
                     border: `1px solid ${keyResult.valid ? '#10b981' : '#ef4444'}`,
@@ -506,8 +513,8 @@ function JwksValidator() {
       )}
 
       {/* Security Analysis for first valid key */}
-      {validationResult && validationResult.keyResults && (
-        validationResult.keyResults
+      {result && result.keyResults && (
+        result.keyResults
           .filter(kr => kr.valid && kr.publicJwkObject)
           .slice(0, 1) // Show analysis for first valid key only
           .map((keyResult, index) => (
