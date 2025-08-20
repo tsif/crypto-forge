@@ -9,6 +9,8 @@ function Controls({
   setRsaHash,
   ecCurve,
   setEcCurve,
+  keyUse,
+  setKeyUse,
   alg,
   onGenerate,
   onClear,
@@ -19,6 +21,7 @@ function Controls({
 
   return (
     <section className="controls card">
+      <h2>Generate Keys</h2>
       <div className="controls-grid">
         <div className="field">
           <label htmlFor="kind">Algorithm</label>
@@ -76,6 +79,18 @@ function Controls({
             </select>
           </div>
         )}
+
+        <div className="field">
+          <label htmlFor="keyUse">Key Use</label>
+          <select 
+            id="keyUse" 
+            value={keyUse} 
+            onChange={(e) => setKeyUse(e.target.value)}
+          >
+            <option value="sig">Signature (sig)</option>
+            <option value="enc">Encryption (enc)</option>
+          </select>
+        </div>
 
         <div className="field">
           <label>alg</label>

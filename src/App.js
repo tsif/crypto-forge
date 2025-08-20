@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Controls from './components/Controls';
 import OutputCard from './components/OutputCard';
 import PemConverter from './components/PemConverter';
+import KeyValidator from './components/KeyValidator';
 import ThemeToggle from './components/ThemeToggle';
 import * as cryptoUtils from './utils/cryptoUtils';
 import './App.css';
@@ -11,6 +12,7 @@ function App() {
   const [rsaBits, setRsaBits] = useState('2048');
   const [rsaHash, setRsaHash] = useState('SHA-256');
   const [ecCurve, setEcCurve] = useState('P-256');
+  const [keyUse, setKeyUse] = useState('sig');
   const [message, setMessage] = useState('Keys generated in your browser.');
   const [busy, setBusy] = useState(false);
   
@@ -72,6 +74,8 @@ function App() {
     privatePem: ''
   });
 
+  const [pemConversionError, setPemConversionError] = useState(null);
+
   const getAlg = () => {
     if (algorithm === 'RSA') {
       return cryptoUtils.algForSelection('RSA', rsaHash);
@@ -89,6 +93,18 @@ function App() {
       privatePem: ''
     });
     setMessage('');
+  };
+
+  const clearPemOutputs = () => {
+    setPemConversionOutputs({
+      privateJwk: '',
+      publicJwk: '',
+      jwksPair: '',
+      jwksPublic: '',
+      publicPem: '',
+      privatePem: ''
+    });
+    setPemConversionError(null);
   };
 
   const generateKeys = async () => {
@@ -127,8 +143,11 @@ function App() {
       const kid = await cryptoUtils.jwkThumbprint(jwkPub);
       const alg = getAlg();
 
-      Object.assign(jwkPriv, { kid, alg, key_ops: ['sign'] });
-      Object.assign(jwkPub, { kid, alg, key_ops: ['verify'] });
+      // Add 'use' parameter (keep native key_ops from Web Crypto API)
+      const keyParams = { kid, alg, use: keyUse };
+      
+      Object.assign(jwkPriv, keyParams);
+      Object.assign(jwkPub, keyParams);
 
       const spki = await crypto.subtle.exportKey('spki', keyPair.publicKey);
       const pkcs8 = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
@@ -154,6 +173,7 @@ function App() {
   const handlePemConversion = async (pemText) => {
     setBusy(true);
     setMessage('');
+    setPemConversionError(null);
     
     try {
       const { der, label } = cryptoUtils.pemToDer(pemText);
@@ -181,15 +201,20 @@ function App() {
       const inferredAlg = family === 'RSA' ? 'RS256' : 
         (jwkPub.crv === 'P-384' ? 'ES384' : (jwkPub.crv === 'P-521' ? 'ES512' : 'ES256'));
 
+      // Infer 'use' based on the key type
+      const inferredUse = (family === 'RSA' && imported.name === 'RSA-OAEP') ? 'enc' : 'sig';
+
       if (jwkPriv) {
         jwkPriv.kid = kid;
         jwkPriv.alg = inferredAlg;
-        jwkPriv.key_ops = (family === 'RSA' && imported.name === 'RSA-OAEP') ? ['decrypt'] : ['sign'];
+        jwkPriv.use = inferredUse;
+        // key_ops already included from the native export
       }
       
       jwkPub.kid = kid;
       jwkPub.alg = inferredAlg;
-      jwkPub.key_ops = (family === 'RSA' && imported.name === 'RSA-OAEP') ? ['encrypt'] : ['verify'];
+      jwkPub.use = inferredUse;
+      // key_ops already included from the native export
 
       let pubPemOut = '';
       let privPemOut = '';
@@ -225,6 +250,7 @@ function App() {
       setMessage('PEM converted successfully.');
     } catch (e) {
       console.error(e);
+      setPemConversionError(e.message || String(e));
       setMessage('Error: ' + (e && e.message ? e.message : String(e)));
     } finally {
       setBusy(false);
@@ -256,6 +282,8 @@ function App() {
         setRsaHash={setRsaHash}
         ecCurve={ecCurve}
         setEcCurve={setEcCurve}
+        keyUse={keyUse}
+        setKeyUse={setKeyUse}
         alg={getAlg()}
         onGenerate={generateKeys}
         onClear={clearOutputs}
@@ -263,51 +291,57 @@ function App() {
         message={message}
       />
 
-      <section className="outputs grid grid-2" style={{ marginTop: '12px' }}>
-        <OutputCard
-          title="Private JWK"
-          value={outputs.privateJwk}
-          filename="private.jwk.json"
-          setMessage={setMessage}
-        />
-        <OutputCard
-          title="Public JWK"
-          value={outputs.publicJwk}
-          filename="public.jwk.json"
-          setMessage={setMessage}
-        />
-        <OutputCard
-          title="JWK Set (Keypair)"
-          value={outputs.jwksPair}
-          filename="jwks-keypair.json"
-          setMessage={setMessage}
-        />
-        <OutputCard
-          title="JWK Set (Public only)"
-          value={outputs.jwksPublic}
-          filename="jwks-public.json"
-          setMessage={setMessage}
-        />
-        <OutputCard
-          title="Public Key (SPKI PEM)"
-          value={outputs.publicPem}
-          filename="public.pem"
-          setMessage={setMessage}
-        />
-        <OutputCard
-          title="Private Key (PKCS#8 PEM)"
-          value={outputs.privatePem}
-          filename="private.pem"
-          setMessage={setMessage}
-        />
-      </section>
+      {(outputs.privateJwk || outputs.publicJwk) && (
+        <section className="outputs grid grid-2 outputs-animated" style={{ marginTop: '12px' }}>
+          <OutputCard
+            title="Private JWK"
+            value={outputs.privateJwk}
+            filename="private.jwk.json"
+            setMessage={setMessage}
+          />
+          <OutputCard
+            title="Public JWK"
+            value={outputs.publicJwk}
+            filename="public.jwk.json"
+            setMessage={setMessage}
+          />
+          <OutputCard
+            title="JWK Set (Keypair)"
+            value={outputs.jwksPair}
+            filename="jwks-keypair.json"
+            setMessage={setMessage}
+          />
+          <OutputCard
+            title="JWK Set (Public only)"
+            value={outputs.jwksPublic}
+            filename="jwks-public.json"
+            setMessage={setMessage}
+          />
+          <OutputCard
+            title="Public Key (SPKI PEM)"
+            value={outputs.publicPem}
+            filename="public.pem"
+            setMessage={setMessage}
+          />
+          <OutputCard
+            title="Private Key (PKCS#8 PEM)"
+            value={outputs.privatePem}
+            filename="private.pem"
+            setMessage={setMessage}
+          />
+        </section>
+      )}
 
       <PemConverter 
         onConvert={handlePemConversion} 
         busy={busy} 
         outputs={pemConversionOutputs}
         setMessage={setMessage}
+        onClearOutputs={clearPemOutputs}
+        error={pemConversionError}
       />
+
+      <KeyValidator />
 
       <section id="notes" className="stack" style={{ marginTop: '8px' }}>
         <h2>Notes & safety</h2>

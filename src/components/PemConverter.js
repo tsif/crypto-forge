@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import OutputCard from './OutputCard';
 
-function PemConverter({ onConvert, busy, outputs, setMessage }) {
+function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, error }) {
   const [pemInput, setPemInput] = useState('');
 
   const handleFileChange = async (e) => {
@@ -17,6 +17,9 @@ function PemConverter({ onConvert, busy, outputs, setMessage }) {
 
   const handleClear = () => {
     setPemInput('');
+    if (onClearOutputs) {
+      onClearOutputs();
+    }
   };
 
   const hasOutputs = outputs && (outputs.publicJwk || outputs.privateJwk);
@@ -38,7 +41,7 @@ function PemConverter({ onConvert, busy, outputs, setMessage }) {
           <button 
             className="btn primary" 
             onClick={handleConvert} 
-            disabled={busy}
+            disabled={busy || !pemInput.trim()}
           >
             Convert PEM
           </button>
@@ -58,7 +61,7 @@ function PemConverter({ onConvert, busy, outputs, setMessage }) {
       </section>
 
       {hasOutputs && (
-        <section className="outputs grid grid-2" style={{ marginTop: '12px' }}>
+        <section className="outputs grid grid-2 outputs-animated" style={{ marginTop: '12px' }}>
           {outputs.privateJwk && (
             <OutputCard
               title="Converted Private JWK"
@@ -99,6 +102,23 @@ function PemConverter({ onConvert, busy, outputs, setMessage }) {
               setMessage={setMessage}
             />
           )}
+        </section>
+      )}
+
+      {error && (
+        <section className="card outputs-animated" style={{ marginTop: '12px' }}>
+          <div className="validation-error">
+            <div className="badge" style={{ 
+              background: 'var(--badge-bg)', 
+              color: '#ef4444',
+              border: '1px solid #ef4444',
+              marginBottom: '12px',
+              display: 'inline-block'
+            }}>
+              ✗ Invalid PEM
+            </div>
+            <p className="muted">{error}</p>
+          </div>
         </section>
       )}
     </>

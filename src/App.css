@@ -247,6 +247,37 @@ code {
   transition: background-color 0.3s ease;
 }
 
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.outputs-animated {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.outputs-hidden {
+  display: none;
+}
+
 /* Theme toggle button */
 .theme-toggle {
   background: var(--card);
