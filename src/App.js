@@ -270,7 +270,7 @@ function App() {
           </div>
           <div className="nav-actions">
             <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-            <a className="muted link" href="#notes">Security notes</a>
+            <a className="muted link mobile-only" href="#notes">Security notes</a>
           </div>
         </div>
       </nav>
@@ -347,7 +347,7 @@ function App() {
 
       <KeyValidator />
 
-      <section id="notes" className="stack" style={{ marginTop: '8px' }}>
+      <section id="notes" className="stack mobile-only" style={{ marginTop: '8px' }}>
         <h2>Notes & safety</h2>
         <ul className="muted" style={{ paddingLeft: '18px', margin: 0 }}>
           <li>Keys are generated <em>locally</em> in your browser using the Web Crypto API. No data is sent anywhere by this page.</li>
@@ -362,6 +362,22 @@ function App() {
           © {new Date().getFullYear()} • Built for developers. Use at your own risk.
         </div>
       </div>
+      
+      <footer className="security-footer desktop-only">
+        <div className="security-content">
+          <h3>Notes & safety</h3>
+          <ul className="security-list">
+            <li>Keys are generated <em>locally</em> in your browser using the Web Crypto API. No data is sent anywhere by this page.</li>
+            <li>Public PEMs are <code>SubjectPublicKeyInfo</code> (<code>BEGIN PUBLIC KEY</code>). Private PEMs are PKCS#8 (<code>BEGIN PRIVATE KEY</code>).</li>
+            <li><strong>Never</strong> publish a JWKS that contains private keys. The "JWK Set (Keypair)" is for local testing only.</li>
+            <li>Imported PEMs are auto-detected (RSA or EC). For RSA, RSASSA-PKCS1-v1_5, RSA-PSS, or RSA-OAEP are accepted. For EC, P‑256/P‑384/P‑521 are supported.</li>
+            <li>The <code>alg</code> on imported keys is inferred (e.g., RS256 for RSA; ES256/384/512 for EC) and may not match the original usage.</li>
+          </ul>
+          <div className="security-footer-copyright">
+            © {new Date().getFullYear()} • Built for developers. Use at your own risk.
+          </div>
+        </div>
+      </footer>
     </>
   );
 }
