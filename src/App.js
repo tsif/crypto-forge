@@ -3,6 +3,7 @@ import Controls from './components/Controls';
 import OutputCard from './components/OutputCard';
 import PemConverter from './components/PemConverter';
 import KeyValidator from './components/KeyValidator';
+import CertificateValidator from './components/CertificateValidator';
 import ThemeToggle from './components/ThemeToggle';
 import * as cryptoUtils from './utils/cryptoUtils';
 import './App.css';
@@ -346,6 +347,8 @@ function App() {
       />
 
       <KeyValidator />
+
+      <CertificateValidator />
 
       <section id="notes" className="stack mobile-only" style={{ marginTop: '8px' }}>
         <h2>Notes & safety</h2>
