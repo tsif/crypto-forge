@@ -286,6 +286,63 @@ code {
   display: none;
 }
 
+/* Segmented Control */
+.segmented-control {
+  display: flex;
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.segment {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 12px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.segment:hover {
+  color: var(--ink);
+  background: var(--btn-hover);
+}
+
+.segment.active {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--line);
+}
+
+@media (max-width: 768px) {
+  .segment {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .segmented-control {
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .segment {
+    border-radius: 6px;
+  }
+}
+
 /* Fixed Navbar */
 .navbar {
   position: fixed;
@@ -340,7 +397,7 @@ code {
 
 @media (max-width: 768px) {
   body {
-    padding-top: 140px; /* More space on mobile */
+    padding-top: 180px; /* More space on mobile */
   }
   
   .nav-container {

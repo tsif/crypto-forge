@@ -4,6 +4,7 @@ import OutputCard from './components/OutputCard';
 import PemConverter from './components/PemConverter';
 import KeyValidator from './components/KeyValidator';
 import CertificateValidator from './components/CertificateValidator';
+import SegmentedControl from './components/SegmentedControl';
 import ThemeToggle from './components/ThemeToggle';
 import * as cryptoUtils from './utils/cryptoUtils';
 import './App.css';
@@ -16,6 +17,7 @@ function App() {
   const [keyUse, setKeyUse] = useState('sig');
   const [message, setMessage] = useState('Keys generated in your browser.');
   const [busy, setBusy] = useState(false);
+  const [activeTab, setActiveTab] = useState('generate');
   
   // Theme state with system preference detection
   const [theme, setTheme] = useState(() => {
@@ -263,10 +265,10 @@ function App() {
       <nav className="navbar">
         <div className="nav-container">
           <div className="nav-content">
-            <h1>Key Wizard — JWK ⇄ PEM</h1>
+            <h1>CryptoForge — Your Complete Key & Certificate Toolkit</h1>
             <p className="nav-subtitle">
-              Generate RSA or EC keypairs and convert between JWK/JWKS and PEM (SPKI / PKCS#8). 
-              Everything runs in your browser.
+              Generate keypairs, convert between JWK/PEM formats, validate keys, and decode X.509 certificates. 
+              All cryptographic operations run securely in your browser.
             </p>
           </div>
           <div className="nav-actions">
@@ -277,78 +279,89 @@ function App() {
       </nav>
       
       <div className="container">
+        <SegmentedControl activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <Controls
-        algorithm={algorithm}
-        setAlgorithm={setAlgorithm}
-        rsaBits={rsaBits}
-        setRsaBits={setRsaBits}
-        rsaHash={rsaHash}
-        setRsaHash={setRsaHash}
-        ecCurve={ecCurve}
-        setEcCurve={setEcCurve}
-        keyUse={keyUse}
-        setKeyUse={setKeyUse}
-        alg={getAlg()}
-        onGenerate={generateKeys}
-        onClear={clearOutputs}
-        busy={busy}
-        message={message}
-      />
+        {activeTab === 'generate' && (
+          <>
+            <Controls
+              algorithm={algorithm}
+              setAlgorithm={setAlgorithm}
+              rsaBits={rsaBits}
+              setRsaBits={setRsaBits}
+              rsaHash={rsaHash}
+              setRsaHash={setRsaHash}
+              ecCurve={ecCurve}
+              setEcCurve={setEcCurve}
+              keyUse={keyUse}
+              setKeyUse={setKeyUse}
+              alg={getAlg()}
+              onGenerate={generateKeys}
+              onClear={clearOutputs}
+              busy={busy}
+              message={message}
+            />
 
-      {(outputs.privateJwk || outputs.publicJwk) && (
-        <section className="outputs grid grid-2 outputs-animated" style={{ marginTop: '12px' }}>
-          <OutputCard
-            title="Private JWK"
-            value={outputs.privateJwk}
-            filename="private.jwk.json"
-            setMessage={setMessage}
-          />
-          <OutputCard
-            title="Public JWK"
-            value={outputs.publicJwk}
-            filename="public.jwk.json"
-            setMessage={setMessage}
-          />
-          <OutputCard
-            title="JWK Set (Keypair)"
-            value={outputs.jwksPair}
-            filename="jwks-keypair.json"
-            setMessage={setMessage}
-          />
-          <OutputCard
-            title="JWK Set (Public only)"
-            value={outputs.jwksPublic}
-            filename="jwks-public.json"
-            setMessage={setMessage}
-          />
-          <OutputCard
-            title="Public Key (SPKI PEM)"
-            value={outputs.publicPem}
-            filename="public.pem"
-            setMessage={setMessage}
-          />
-          <OutputCard
-            title="Private Key (PKCS#8 PEM)"
-            value={outputs.privatePem}
-            filename="private.pem"
-            setMessage={setMessage}
-          />
-        </section>
-      )}
+            {(outputs.privateJwk || outputs.publicJwk) && (
+              <section className="outputs grid grid-2 outputs-animated" style={{ marginTop: '12px' }}>
+                <OutputCard
+                  title="Private JWK"
+                  value={outputs.privateJwk}
+                  filename="private.jwk.json"
+                  setMessage={setMessage}
+                />
+                <OutputCard
+                  title="Public JWK"
+                  value={outputs.publicJwk}
+                  filename="public.jwk.json"
+                  setMessage={setMessage}
+                />
+                <OutputCard
+                  title="JWK Set (Keypair)"
+                  value={outputs.jwksPair}
+                  filename="jwks-keypair.json"
+                  setMessage={setMessage}
+                />
+                <OutputCard
+                  title="JWK Set (Public only)"
+                  value={outputs.jwksPublic}
+                  filename="jwks-public.json"
+                  setMessage={setMessage}
+                />
+                <OutputCard
+                  title="Public Key (SPKI PEM)"
+                  value={outputs.publicPem}
+                  filename="public.pem"
+                  setMessage={setMessage}
+                />
+                <OutputCard
+                  title="Private Key (PKCS#8 PEM)"
+                  value={outputs.privatePem}
+                  filename="private.pem"
+                  setMessage={setMessage}
+                />
+              </section>
+            )}
+          </>
+        )}
 
-      <PemConverter 
-        onConvert={handlePemConversion} 
-        busy={busy} 
-        outputs={pemConversionOutputs}
-        setMessage={setMessage}
-        onClearOutputs={clearPemOutputs}
-        error={pemConversionError}
-      />
+        {activeTab === 'pem-convert' && (
+          <PemConverter 
+            onConvert={handlePemConversion} 
+            busy={busy} 
+            outputs={pemConversionOutputs}
+            setMessage={setMessage}
+            onClearOutputs={clearPemOutputs}
+            error={pemConversionError}
+          />
+        )}
 
-      <KeyValidator />
+        {activeTab === 'validate-jwk' && (
+          <KeyValidator />
+        )}
 
-      <CertificateValidator />
+        {activeTab === 'validate-cert' && (
+          <CertificateValidator />
+        )}
 
       <section id="notes" className="stack mobile-only" style={{ marginTop: '8px' }}>
         <h2>Notes & safety</h2>
@@ -356,7 +369,8 @@ function App() {
           <li>Keys are generated <em>locally</em> in your browser using the Web Crypto API. No data is sent anywhere by this page.</li>
           <li>Public PEMs are <code>SubjectPublicKeyInfo</code> (<code>BEGIN PUBLIC KEY</code>). Private PEMs are PKCS#8 (<code>BEGIN PRIVATE KEY</code>).</li>
           <li><strong>Never</strong> publish a JWKS that contains private keys. The "JWK Set (Keypair)" is for local testing only.</li>
-          <li>Imported PEMs are auto-detected (RSA or EC). For RSA, RSASSA-PKCS1-v1_5, RSA-PSS, or RSA-OAEP are accepted. For EC, P‑256/P‑384/P‑521 are supported.</li>
+          <li>Certificate validation parses X.509 structure and displays properties. <strong>Always verify</strong> certificate chain and CRL status separately.</li>
+          <li>Imported PEMs and certificates are auto-detected (RSA or EC). For RSA, RSASSA-PKCS1-v1_5, RSA-PSS, or RSA-OAEP are accepted. For EC, P‑256/P‑384/P‑521 are supported.</li>
           <li>The <code>alg</code> on imported keys is inferred (e.g., RS256 for RSA; ES256/384/512 for EC) and may not match the original usage.</li>
         </ul>
       </section>
@@ -373,7 +387,8 @@ function App() {
             <li>Keys are generated <em>locally</em> in your browser using the Web Crypto API. No data is sent anywhere by this page.</li>
             <li>Public PEMs are <code>SubjectPublicKeyInfo</code> (<code>BEGIN PUBLIC KEY</code>). Private PEMs are PKCS#8 (<code>BEGIN PRIVATE KEY</code>).</li>
             <li><strong>Never</strong> publish a JWKS that contains private keys. The "JWK Set (Keypair)" is for local testing only.</li>
-            <li>Imported PEMs are auto-detected (RSA or EC). For RSA, RSASSA-PKCS1-v1_5, RSA-PSS, or RSA-OAEP are accepted. For EC, P‑256/P‑384/P‑521 are supported.</li>
+            <li>Certificate validation parses X.509 structure and displays properties. <strong>Always verify</strong> certificate chain and CRL status separately.</li>
+            <li>Imported PEMs and certificates are auto-detected (RSA or EC). For RSA, RSASSA-PKCS1-v1_5, RSA-PSS, or RSA-OAEP are accepted. For EC, P‑256/P‑384/P‑521 are supported.</li>
             <li>The <code>alg</code> on imported keys is inferred (e.g., RS256 for RSA; ES256/384/512 for EC) and may not match the original usage.</li>
           </ul>
           <div className="security-footer-copyright">
