@@ -1,0 +1,294 @@
+:root {
+  --bg: #f7f7fb;
+  --card: #ffffff;
+  --ink: #111;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --accent: #111;
+  --input-bg: #fafafa;
+  --btn-bg: #fff;
+  --btn-hover: #f6f6f6;
+  --badge-bg: #f3f4f6;
+  --code-bg: #f3f4f6;
+  --gradient-start: #fafafa;
+  --gradient-end: #fff;
+}
+
+[data-theme="dark"] {
+  --bg: #0a0a0a;
+  --card: #1a1a1a;
+  --ink: #e5e5e5;
+  --muted: #9ca3af;
+  --line: #2a2a2a;
+  --accent: #e5e5e5;
+  --input-bg: #262626;
+  --btn-bg: #2a2a2a;
+  --btn-hover: #333333;
+  --badge-bg: #262626;
+  --code-bg: #262626;
+  --gradient-start: #0a0a0a;
+  --gradient-end: #1a1a1a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  color: var(--ink);
+  background: linear-gradient(var(--gradient-start), var(--gradient-end));
+  transition: background 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1 {
+  font-size: clamp(22px, 3vw, 28px);
+  margin: 0 0 4px;
+}
+
+h2 {
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+
+p {
+  margin: 0;
+}
+
+.sub {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.grid {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 900px) {
+  .grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+select,
+input[type="file"],
+textarea {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  background: var(--input-bg);
+  color: var(--ink);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+textarea {
+  width: 100%;
+  min-height: 160px;
+  height: 160px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  resize: none;
+}
+
+.btn {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: var(--btn-bg);
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.btn:hover {
+  background: var(--btn-hover);
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+[data-theme="dark"] .btn.primary {
+  color: #000;
+}
+
+.btn.primary[disabled] {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.space {
+  height: 6px;
+}
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.badge {
+  padding: 6px 10px;
+  background: var(--badge-bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--ink);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.footer {
+  color: #6b7280;
+  font-size: 12px;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.controls-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field > *:first-child {
+  min-width: 80px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.outputs .card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.controls.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.right {
+  margin-left: auto;
+}
+
+.link {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  background-color: var(--code-bg);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.875em;
+  color: var(--ink);
+  transition: background-color 0.3s ease;
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--ink);
+  transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--btn-hover);
+}
+
+.theme-toggle-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .titlebar {
+    flex-wrap: wrap;
+  }
+  
+  .header-actions {
+    width: 100%;
+    align-items: flex-start;
+    margin-top: 8px;
+  }
+}
