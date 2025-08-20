@@ -141,17 +141,36 @@ function JwksValidator() {
           let algorithm;
           
           if (jwk.kty === 'RSA') {
-            const rsaAlgs = [
-              { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-              { name: 'RSA-PSS', hash: 'SHA-256' },
-              { name: 'RSA-OAEP', hash: 'SHA-256' }
-            ];
+            // Determine key usage from JWK
+            const isEncryptionKey = jwk.use === 'enc' || 
+              (jwk.key_ops && (jwk.key_ops.includes('encrypt') || jwk.key_ops.includes('decrypt') || 
+               jwk.key_ops.includes('wrapKey') || jwk.key_ops.includes('unwrapKey')));
+            
+            const rsaAlgs = isEncryptionKey ? 
+              [{ name: 'RSA-OAEP', hash: 'SHA-256' }, { name: 'RSA-OAEP', hash: 'SHA-384' }, { name: 'RSA-OAEP', hash: 'SHA-512' }] :
+              [{ name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, { name: 'RSA-PSS', hash: 'SHA-256' }];
             
             for (const alg of rsaAlgs) {
               try {
-                const usages = alg.name === 'RSA-OAEP' ? 
-                  (keyResult.isPrivate ? ['decrypt'] : ['encrypt']) : 
-                  (keyResult.isPrivate ? ['sign'] : ['verify']);
+                // Use the key_ops from the JWK if available, otherwise use defaults
+                let usages = [];
+                if (jwk.key_ops && Array.isArray(jwk.key_ops)) {
+                  // Filter to only include valid Web Crypto operations
+                  const validOps = ['sign', 'verify', 'encrypt', 'decrypt', 'wrapKey', 'unwrapKey'];
+                  usages = jwk.key_ops.filter(op => validOps.includes(op));
+                } else {
+                  // Default based on algorithm and private/public
+                  usages = alg.name === 'RSA-OAEP' ? 
+                    (keyResult.isPrivate ? ['decrypt', 'unwrapKey'] : ['encrypt', 'wrapKey']) : 
+                    (keyResult.isPrivate ? ['sign'] : ['verify']);
+                }
+                
+                if (usages.length === 0) {
+                  // If no valid usages, try with minimal set
+                  usages = alg.name === 'RSA-OAEP' ? 
+                    (keyResult.isPrivate ? ['decrypt'] : ['encrypt']) : 
+                    (keyResult.isPrivate ? ['sign'] : ['verify']);
+                }
                 
                 cryptoKey = await crypto.subtle.importKey('jwk', jwk, alg, false, usages);
                 algorithm = alg;
@@ -168,19 +187,63 @@ function JwksValidator() {
               continue;
             }
             
-            algorithm = { name: 'ECDSA', namedCurve: curve };
-            try {
-              cryptoKey = await crypto.subtle.importKey(
-                'jwk', 
-                jwk, 
-                algorithm, 
-                false, 
-                keyResult.isPrivate ? ['sign'] : ['verify']
-              );
-            } catch (e) {
-              keyResult.error = `Failed to import EC key: ${e.message}`;
-              keyResults.push(keyResult);
-              continue;
+            // Determine if it's ECDH or ECDSA based on use or key_ops
+            // Note: For public keys, we also check if there are any deriveKey/deriveBits in key_ops
+            // even though public keys can't perform these operations (they're just metadata)
+            const isKeyAgreement = jwk.use === 'enc' || 
+              (jwk.key_ops && (jwk.key_ops.includes('deriveKey') || jwk.key_ops.includes('deriveBits'))) ||
+              (jwk.alg && jwk.alg.startsWith('ECDH'));
+            
+            if (isKeyAgreement) {
+              // ECDH for key agreement
+              algorithm = { name: 'ECDH', namedCurve: curve };
+              try {
+                let usages = [];
+                
+                // For ECDH, public keys don't have usages in Web Crypto API
+                // Only private keys can perform deriveKey/deriveBits
+                if (keyResult.isPrivate) {
+                  if (jwk.key_ops && Array.isArray(jwk.key_ops)) {
+                    const validOps = ['deriveKey', 'deriveBits'];
+                    usages = jwk.key_ops.filter(op => validOps.includes(op));
+                  }
+                  
+                  if (usages.length === 0) {
+                    usages = ['deriveKey', 'deriveBits'];
+                  }
+                } else {
+                  // Public ECDH keys have no usages in Web Crypto API
+                  usages = [];
+                }
+                
+                cryptoKey = await crypto.subtle.importKey('jwk', jwk, algorithm, false, usages);
+              } catch (e) {
+                keyResult.error = `Failed to import ECDH key: ${e.message}`;
+                keyResults.push(keyResult);
+                continue;
+              }
+            } else {
+              // ECDSA for signing
+              algorithm = { name: 'ECDSA', namedCurve: curve };
+              try {
+                let usages = [];
+                if (jwk.key_ops && Array.isArray(jwk.key_ops)) {
+                  const validOps = ['sign', 'verify'];
+                  usages = jwk.key_ops.filter(op => validOps.includes(op));
+                } else {
+                  usages = keyResult.isPrivate ? ['sign'] : ['verify'];
+                }
+                
+                if (usages.length === 0) {
+                  usages = keyResult.isPrivate ? ['sign'] : ['verify'];
+                }
+                
+                cryptoKey = await crypto.subtle.importKey('jwk', jwk, algorithm, false, usages);
+              } catch (e) {
+                keyResult.error = `Failed to import ECDSA key: ${e.message}`;
+                keyResults.push(keyResult);
+                continue;
+              }
             }
           }
 

@@ -7,6 +7,7 @@ import JwksValidator from './components/JwksValidator';
 import CertificateValidator from './components/CertificateValidator';
 import SegmentedControl from './components/SegmentedControl';
 import ThemeToggle from './components/ThemeToggle';
+import FontSizeToggle from './components/FontSizeToggle';
 import Toast from './components/Toast';
 import KeyStrengthAnalyzer from './components/KeyStrengthAnalyzer';
 import * as cryptoUtils from './utils/cryptoUtils';
@@ -39,11 +40,23 @@ function App() {
     return 'light';
   });
 
+  // Font size state with localStorage persistence
+  const [fontSize, setFontSize] = useState(() => {
+    const savedFontSize = localStorage.getItem('fontSize');
+    return savedFontSize || 'default';
+  });
+
   // Apply theme on mount and when it changes
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Apply font size on mount and when it changes
+  useEffect(() => {
+    document.documentElement.setAttribute('data-font-size', fontSize);
+    localStorage.setItem('fontSize', fontSize);
+  }, [fontSize]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -63,6 +76,10 @@ function App() {
 
   const toggleTheme = () => {
     setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+  };
+
+  const toggleFontSize = () => {
+    setFontSize(prevSize => prevSize === 'default' ? 'large' : 'default');
   };
 
   const showToast = (message) => {
@@ -99,8 +116,17 @@ function App() {
 
   const getAlg = () => {
     if (algorithm === 'RSA') {
+      if (keyUse === 'enc') {
+        // RSA-OAEP algorithms for encryption
+        return {
+          'SHA-256': 'RSA-OAEP-256',
+          'SHA-384': 'RSA-OAEP-384',
+          'SHA-512': 'RSA-OAEP-512'
+        }[rsaHash] || 'RSA-OAEP';
+      }
       return cryptoUtils.algForSelection('RSA', rsaHash);
     }
+    // For EC, algorithm doesn't change with use (ECDH doesn't have standard JWA alg values)
     return cryptoUtils.algForSelection('EC', ecCurve);
   };
 
@@ -138,42 +164,82 @@ function App() {
     
     try {
       const isRSA = algorithm === 'RSA';
+      const isEncryption = keyUse === 'enc';
       let keyPair;
       
       if (isRSA) {
-        keyPair = await crypto.subtle.generateKey(
-          {
-            name: 'RSASSA-PKCS1-v1_5',
-            modulusLength: parseInt(rsaBits, 10),
-            publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
-            hash: rsaHash
-          },
-          true,
-          ['sign', 'verify']
-        );
+        if (isEncryption) {
+          // Use RSA-OAEP for encryption
+          keyPair = await crypto.subtle.generateKey(
+            {
+              name: 'RSA-OAEP',
+              modulusLength: parseInt(rsaBits, 10),
+              publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
+              hash: rsaHash
+            },
+            true,
+            ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+          );
+        } else {
+          // Use RSASSA-PKCS1-v1_5 for signing
+          keyPair = await crypto.subtle.generateKey(
+            {
+              name: 'RSASSA-PKCS1-v1_5',
+              modulusLength: parseInt(rsaBits, 10),
+              publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
+              hash: rsaHash
+            },
+            true,
+            ['sign', 'verify']
+          );
+        }
       } else {
-        keyPair = await crypto.subtle.generateKey(
-          {
-            name: 'ECDSA',
-            namedCurve: ecCurve
-          },
-          true,
-          ['sign', 'verify']
-        );
+        // EC keys - ECDSA for signing, ECDH for key agreement (not direct encryption)
+        if (isEncryption) {
+          keyPair = await crypto.subtle.generateKey(
+            {
+              name: 'ECDH',
+              namedCurve: ecCurve
+            },
+            true,
+            ['deriveKey', 'deriveBits']
+          );
+        } else {
+          keyPair = await crypto.subtle.generateKey(
+            {
+              name: 'ECDSA',
+              namedCurve: ecCurve
+            },
+            true,
+            ['sign', 'verify']
+          );
+        }
       }
 
       const jwkPriv = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
       const jwkPub = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
 
       const kid = await cryptoUtils.jwkThumbprint(jwkPub);
+      const kidPrivate = await cryptoUtils.privateKeyId(jwkPriv); // Unique ID for private key
       const alg = getAlg();
 
-      // Add 'use' parameter (keep native key_ops from Web Crypto API)
-      const keyParams = { kid, alg, use: keyUse };
+      // Add 'use' parameter
+      // Note: key_ops are already set correctly by Web Crypto API export
+      const keyParamsPublic = { kid, alg, use: keyUse };
+      const keyParamsPrivate = { kid: kidPrivate, alg, use: keyUse };
       
-      Object.assign(jwkPriv, keyParams);
-      Object.assign(jwkPub, keyParams);
+      // For ECDH keys used for encryption, we need to handle the alg differently
+      if (!isRSA && isEncryption) {
+        // ECDH doesn't have standard JWA algorithm identifiers for direct use
+        // Set alg to indicate the curve-based ECDH
+        keyParamsPublic.alg = 'ECDH-ES';
+        keyParamsPrivate.alg = 'ECDH-ES';
+      }
+      
+      Object.assign(jwkPriv, keyParamsPrivate);
+      Object.assign(jwkPub, keyParamsPublic);
 
+      // Export keys to PEM format
       const spki = await crypto.subtle.exportKey('spki', keyPair.publicKey);
       const pkcs8 = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
 
@@ -235,7 +301,8 @@ function App() {
       const inferredUse = (family === 'RSA' && imported.name === 'RSA-OAEP') ? 'enc' : 'sig';
 
       if (jwkPriv) {
-        jwkPriv.kid = kid;
+        const kidPrivate = await cryptoUtils.privateKeyId(jwkPriv); // Unique ID for private key
+        jwkPriv.kid = kidPrivate;
         jwkPriv.alg = inferredAlg;
         jwkPriv.use = inferredUse;
         // key_ops already included from the native export
@@ -304,6 +371,7 @@ function App() {
             </p>
           </div>
           <div className="nav-actions">
+            <FontSizeToggle fontSize={fontSize} toggleFontSize={toggleFontSize} />
             <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
             <a className="muted link mobile-only" href="#notes">Security notes</a>
           </div>

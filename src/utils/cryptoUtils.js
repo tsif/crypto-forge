@@ -75,6 +75,29 @@ export async function jwkThumbprint(jwk) {
   return base64UrlFromBuf(digest);
 }
 
+// Generate a unique ID for private keys using SHA-256 of the full private key material
+export async function privateKeyId(jwk) {
+  let json = "";
+  if (jwk.kty === 'RSA') {
+    // Include private components for RSA
+    json = JSON.stringify({ 
+      kty: jwk.kty, n: jwk.n, e: jwk.e,
+      d: jwk.d, p: jwk.p, q: jwk.q, 
+      dp: jwk.dp, dq: jwk.dq, qi: jwk.qi 
+    });
+  } else if (jwk.kty === 'EC') {
+    // Include private component for EC
+    json = JSON.stringify({ 
+      kty: jwk.kty, crv: jwk.crv, 
+      x: jwk.x, y: jwk.y, d: jwk.d 
+    });
+  } else {
+    throw new Error('Unsupported kty for private key ID');
+  }
+  const digest = await crypto.subtle.digest('SHA-256', textEncoder.encode(json));
+  return base64UrlFromBuf(digest);
+}
+
 const RSA_HASHES = ['SHA-256', 'SHA-384', 'SHA-512'];
 const EC_CURVES = ['P-256', 'P-384', 'P-521'];
 
@@ -267,9 +290,39 @@ export function analyzeKeyStrength(jwk) {
   };
 
   if (jwk.kty === 'RSA') {
-    // Calculate modulus length
-    const modulusLength = jwk.n ? 
-      Math.ceil((jwk.n.replace(/[^A-Za-z0-9+/]/g, '').length * 6) / 8) : 0;
+    // Calculate modulus length in bits
+    // Decode base64url to get actual byte length, then convert to bits
+    let modulusLength = 0;
+    if (jwk.n) {
+      // Add padding if needed for base64 decoding
+      const base64 = jwk.n.replace(/-/g, '+').replace(/_/g, '/');
+      const padding = '='.repeat((4 - base64.length % 4) % 4);
+      const padded = base64 + padding;
+      
+      // Decode and get byte length
+      const decoded = atob(padded);
+      // Count actual bits (bytes * 8, but adjust for leading zero bytes)
+      let firstNonZero = 0;
+      for (let i = 0; i < decoded.length; i++) {
+        if (decoded.charCodeAt(i) !== 0) {
+          firstNonZero = i;
+          break;
+        }
+      }
+      const significantBytes = decoded.length - firstNonZero;
+      modulusLength = significantBytes * 8;
+      
+      // Adjust for leading zero bits in the first significant byte
+      if (significantBytes > 0) {
+        const firstByte = decoded.charCodeAt(firstNonZero);
+        let leadingZeros = 0;
+        for (let bit = 7; bit >= 0; bit--) {
+          if ((firstByte & (1 << bit)) !== 0) break;
+          leadingZeros++;
+        }
+        modulusLength -= leadingZeros;
+      }
+    }
     
     analysis.details = {
       modulusLength,

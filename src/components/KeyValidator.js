@@ -77,18 +77,32 @@ function KeyValidator() {
       
       try {
         if (keyType === 'RSA') {
-          // Try different RSA algorithms
-          const rsaAlgs = [
-            { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-            { name: 'RSA-PSS', hash: 'SHA-256' },
-            { name: 'RSA-OAEP', hash: 'SHA-256' }
-          ];
+          // Determine if it's an encryption or signing key
+          const isEncryptionKey = jwk.use === 'enc' || 
+            (jwk.key_ops && (jwk.key_ops.includes('encrypt') || jwk.key_ops.includes('decrypt') || 
+             jwk.key_ops.includes('wrapKey') || jwk.key_ops.includes('unwrapKey')));
+          
+          // Try different RSA algorithms based on key usage
+          const rsaAlgs = isEncryptionKey ?
+            [{ name: 'RSA-OAEP', hash: 'SHA-256' }, { name: 'RSA-OAEP', hash: 'SHA-384' }, { name: 'RSA-OAEP', hash: 'SHA-512' }] :
+            [{ name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, { name: 'RSA-PSS', hash: 'SHA-256' }];
           
           for (const alg of rsaAlgs) {
             try {
-              const usages = alg.name === 'RSA-OAEP' ? 
-                (isPrivate ? ['decrypt'] : ['encrypt']) : 
-                (isPrivate ? ['sign'] : ['verify']);
+              // Use key_ops from JWK if available
+              let usages = [];
+              if (jwk.key_ops && Array.isArray(jwk.key_ops) && jwk.key_ops.length > 0) {
+                // Use the key_ops from the JWK, filtering to valid Web Crypto operations
+                const validOps = ['sign', 'verify', 'encrypt', 'decrypt', 'wrapKey', 'unwrapKey'];
+                usages = jwk.key_ops.filter(op => validOps.includes(op));
+              } 
+              
+              if (usages.length === 0) {
+                // Fallback to defaults based on algorithm and key type
+                usages = alg.name === 'RSA-OAEP' ? 
+                  (isPrivate ? ['decrypt'] : ['encrypt']) : 
+                  (isPrivate ? ['sign'] : ['verify']);
+              }
               
               cryptoKey = await crypto.subtle.importKey('jwk', jwk, alg, false, usages);
               algorithm = alg;
@@ -104,14 +118,52 @@ function KeyValidator() {
             throw new Error('EC key missing curve parameter');
           }
           
-          algorithm = { name: 'ECDSA', namedCurve: curve };
-          cryptoKey = await crypto.subtle.importKey(
-            'jwk', 
-            jwk, 
-            algorithm, 
-            false, 
-            isPrivate ? ['sign'] : ['verify']
-          );
+          // Determine if it's ECDH or ECDSA based on use or key_ops
+          // Note: For public keys, we also check if there are any deriveKey/deriveBits in key_ops
+          // even though public keys can't perform these operations (they're just metadata)
+          const isKeyAgreement = jwk.use === 'enc' || 
+            (jwk.key_ops && (jwk.key_ops.includes('deriveKey') || jwk.key_ops.includes('deriveBits'))) ||
+            (jwk.alg && jwk.alg.startsWith('ECDH'));
+          
+          if (isKeyAgreement) {
+            // ECDH for key agreement
+            algorithm = { name: 'ECDH', namedCurve: curve };
+            
+            let usages = [];
+            
+            // For ECDH, public keys don't have usages in Web Crypto API
+            // Only private keys can perform deriveKey/deriveBits
+            if (isPrivate) {
+              if (jwk.key_ops && Array.isArray(jwk.key_ops) && jwk.key_ops.length > 0) {
+                const validOps = ['deriveKey', 'deriveBits'];
+                usages = jwk.key_ops.filter(op => validOps.includes(op));
+              }
+              
+              if (usages.length === 0) {
+                usages = ['deriveKey', 'deriveBits'];
+              }
+            } else {
+              // Public ECDH keys have no usages in Web Crypto API
+              usages = [];
+            }
+            
+            cryptoKey = await crypto.subtle.importKey('jwk', jwk, algorithm, false, usages);
+          } else {
+            // ECDSA for signing
+            algorithm = { name: 'ECDSA', namedCurve: curve };
+            
+            let usages = [];
+            if (jwk.key_ops && Array.isArray(jwk.key_ops) && jwk.key_ops.length > 0) {
+              const validOps = ['sign', 'verify'];
+              usages = jwk.key_ops.filter(op => validOps.includes(op));
+            }
+            
+            if (usages.length === 0) {
+              usages = isPrivate ? ['sign'] : ['verify'];
+            }
+            
+            cryptoKey = await crypto.subtle.importKey('jwk', jwk, algorithm, false, usages);
+          }
         } else {
           throw new Error(`Unsupported key type: ${keyType}`);
         }
