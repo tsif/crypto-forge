@@ -41,6 +41,7 @@ body {
   background: linear-gradient(var(--gradient-start), var(--gradient-end));
   transition: background 0.3s ease, color 0.3s ease;
   min-height: 100vh;
+  padding-top: 120px; /* Space for fixed navbar */
 }
 
 .container {
@@ -276,6 +277,68 @@ code {
 
 .outputs-hidden {
   display: none;
+}
+
+/* Fixed Navbar */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  z-index: 1000;
+  transition: background 0.3s ease, border-color 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.nav-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.nav-content h1 {
+  font-size: clamp(20px, 3vw, 24px);
+  margin: 0 0 4px;
+}
+
+.nav-subtitle {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.nav-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-top: 140px; /* More space on mobile */
+  }
+  
+  .nav-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .nav-actions {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
 }
 
 /* Theme toggle button */

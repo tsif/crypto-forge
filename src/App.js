@@ -258,20 +258,24 @@ function App() {
   };
 
   return (
-    <div className="container">
-      <header className="titlebar">
-        <div>
-          <h1>Key Wizard — JWK ⇄ PEM</h1>
-          <p className="sub">
-            Generate RSA or EC keypairs and convert between JWK/JWKS and PEM (SPKI / PKCS#8). 
-            Everything runs in your browser.
-          </p>
+    <>
+      <nav className="navbar">
+        <div className="nav-container">
+          <div className="nav-content">
+            <h1>Key Wizard — JWK ⇄ PEM</h1>
+            <p className="nav-subtitle">
+              Generate RSA or EC keypairs and convert between JWK/JWKS and PEM (SPKI / PKCS#8). 
+              Everything runs in your browser.
+            </p>
+          </div>
+          <div className="nav-actions">
+            <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+            <a className="muted link" href="#notes">Security notes</a>
+          </div>
         </div>
-        <div className="header-actions">
-          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-          <a className="muted link" href="#notes">Security notes</a>
-        </div>
-      </header>
+      </nav>
+      
+      <div className="container">
 
       <Controls
         algorithm={algorithm}
@@ -354,10 +358,11 @@ function App() {
         </ul>
       </section>
 
-      <div className="footer">
-        © {new Date().getFullYear()} • Built for developers. Use at your own risk.
+        <div className="footer">
+          © {new Date().getFullYear()} • Built for developers. Use at your own risk.
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
