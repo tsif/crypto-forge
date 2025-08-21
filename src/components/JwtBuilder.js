@@ -186,6 +186,93 @@ function JwtBuilder({
     return `${signingInput}.${encodedSignature}`;
   };
 
+  const decodeJwt = async () => {
+    setBusy(true);
+    setMessage('');
+
+    try {
+      if (!state.jwtToVerify.trim()) {
+        throw new Error('Please provide a JWT to decode');
+      }
+
+      const parts = state.jwtToVerify.split('.');
+      if (parts.length !== 3) {
+        throw new Error('Invalid JWT format. Expected 3 parts separated by dots.');
+      }
+
+      // Decode header and payload (no signature verification)
+      const header = JSON.parse(base64UrlDecode(parts[0]));
+      const payload = JSON.parse(base64UrlDecode(parts[1]));
+
+      // Check if payload has standard claims and provide human-readable info
+      const now = Math.floor(Date.now() / 1000);
+      const claims = {
+        // Standard registered claims
+        iss: payload.iss ? `Issuer: ${payload.iss}` : null,
+        sub: payload.sub ? `Subject: ${payload.sub}` : null,
+        aud: payload.aud ? `Audience: ${Array.isArray(payload.aud) ? payload.aud.join(', ') : payload.aud}` : null,
+        exp: payload.exp ? {
+          raw: payload.exp,
+          date: new Date(payload.exp * 1000).toISOString(),
+          expired: payload.exp < now,
+          timeLeft: payload.exp - now
+        } : null,
+        nbf: payload.nbf ? {
+          raw: payload.nbf,
+          date: new Date(payload.nbf * 1000).toISOString(),
+          active: payload.nbf <= now
+        } : null,
+        iat: payload.iat ? {
+          raw: payload.iat,
+          date: new Date(payload.iat * 1000).toISOString()
+        } : null,
+        jti: payload.jti ? `JWT ID: ${payload.jti}` : null
+      };
+
+      // Get x5c certificate info if present
+      let x5cInfo = null;
+      if (header.x5c && Array.isArray(header.x5c)) {
+        x5cInfo = {
+          chainLength: header.x5c.length,
+          firstCert: header.x5c[0] ? header.x5c[0].substring(0, 50) + '...' : null
+        };
+      }
+
+      updateState({
+        verificationResult: {
+          mode: 'decode-only',
+          valid: null, // Not applicable for decode-only
+          header,
+          payload,
+          claims,
+          x5cInfo,
+          rawParts: parts,
+          decodedAt: new Date().toISOString()
+        }
+      });
+
+      if (showToast) {
+        showToast('✓ JWT decoded successfully');
+      }
+
+    } catch (error) {
+      updateState({
+        verificationResult: {
+          mode: 'decode-only',
+          error: error.message,
+          header: null,
+          payload: null
+        }
+      });
+
+      if (showToast) {
+        showToast(`✗ JWT decode failed: ${error.message}`);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const verifyJwt = async () => {
     setBusy(true);
     setMessage('');
@@ -229,6 +316,7 @@ function JwtBuilder({
       const isNotYetValid = payload.nbf && payload.nbf > now;
 
       const result = {
+        mode: 'verify',
         valid: signatureValid && !isExpired && !isNotYetValid,
         header,
         payload,
@@ -248,6 +336,7 @@ function JwtBuilder({
     } catch (error) {
       updateState({ 
         verificationResult: { 
+          mode: 'verify',
           valid: false, 
           error: error.message 
         } 
@@ -794,8 +883,18 @@ function JwtBuilder({
             <div className="actions" style={{ marginTop: '20px' }}>
               <button 
                 className="btn primary" 
+                onClick={decodeJwt}
+                disabled={busy}
+                style={{ marginRight: '8px' }}
+              >
+                {busy && <Spinner size={16} />}
+                Decode JWT
+              </button>
+              <button 
+                className="btn" 
                 onClick={verifyJwt}
                 disabled={busy}
+                style={{ marginRight: '8px' }}
               >
                 {busy && <Spinner size={16} />}
                 Verify JWT
@@ -808,7 +907,9 @@ function JwtBuilder({
 
           {state.verificationResult && (
             <section className="card outputs-animated" style={{ marginTop: '12px' }}>
-              <h3>Verification Result</h3>
+              <h3>
+                {state.verificationResult.mode === 'decode-only' ? 'JWT Decode Result' : 'Verification Result'}
+              </h3>
               
               {state.verificationResult.error ? (
                 <div className="validation-error">
@@ -825,17 +926,36 @@ function JwtBuilder({
                 </div>
               ) : (
                 <>
-                  <div className="validation-success">
-                    <div className="badge" style={{ 
-                      background: 'var(--badge-bg)', 
-                      color: state.verificationResult.valid ? '#10b981' : '#ef4444',
-                      border: `1px solid ${state.verificationResult.valid ? '#10b981' : '#ef4444'}`,
-                      marginBottom: '12px',
-                      display: 'inline-block'
-                    }}>
-                      {state.verificationResult.valid ? '✓ Valid JWT' : '✗ Invalid JWT'}
+                  {state.verificationResult.mode === 'decode-only' ? (
+                    <div className="validation-success">
+                      <div className="badge" style={{ 
+                        background: 'var(--badge-bg)', 
+                        color: '#3b82f6',
+                        border: '1px solid #3b82f6',
+                        marginBottom: '12px',
+                        display: 'inline-block'
+                      }}>
+                        ℹ JWT Decoded (Not Verified)
+                      </div>
+                      {state.verificationResult.decodedAt && (
+                        <p className="muted" style={{ fontSize: '12px', marginTop: '8px' }}>
+                          Decoded at: {new Date(state.verificationResult.decodedAt).toLocaleString()}
+                        </p>
+                      )}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="validation-success">
+                      <div className="badge" style={{ 
+                        background: 'var(--badge-bg)', 
+                        color: state.verificationResult.valid ? '#10b981' : '#ef4444',
+                        border: `1px solid ${state.verificationResult.valid ? '#10b981' : '#ef4444'}`,
+                        marginBottom: '12px',
+                        display: 'inline-block'
+                      }}>
+                        {state.verificationResult.valid ? '✓ Valid JWT' : '✗ Invalid JWT'}
+                      </div>
+                    </div>
+                  )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px', marginBottom: '16px' }}>
                     <div style={{ background: 'var(--input-bg)', padding: '12px', borderRadius: '8px', overflow: 'hidden' }}>
@@ -868,42 +988,100 @@ function JwtBuilder({
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                    <div style={{ background: 'var(--input-bg)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '16px', fontWeight: '600', color: state.verificationResult.signatureValid ? '#10b981' : '#ef4444' }}>
-                        {state.verificationResult.signatureValid ? '✓' : '✗'}
+                  {/* Verification-specific displays */}
+                  {state.verificationResult.mode === 'verify' && (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                        <div style={{ background: 'var(--input-bg)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                          <div style={{ fontSize: '16px', fontWeight: '600', color: state.verificationResult.signatureValid ? '#10b981' : '#ef4444' }}>
+                            {state.verificationResult.signatureValid ? '✓' : '✗'}
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Signature</div>
+                        </div>
+                        <div style={{ background: 'var(--input-bg)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                          <div style={{ fontSize: '16px', fontWeight: '600', color: state.verificationResult.isExpired ? '#ef4444' : '#10b981' }}>
+                            {state.verificationResult.isExpired ? '✗' : '✓'}
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Not Expired</div>
+                        </div>
+                        <div style={{ background: 'var(--input-bg)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
+                          <div style={{ fontSize: '16px', fontWeight: '600', color: state.verificationResult.isNotYetValid ? '#ef4444' : '#10b981' }}>
+                            {state.verificationResult.isNotYetValid ? '✗' : '✓'}
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Valid Now</div>
+                        </div>
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Signature</div>
-                    </div>
-                    <div style={{ background: 'var(--input-bg)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '16px', fontWeight: '600', color: state.verificationResult.isExpired ? '#ef4444' : '#10b981' }}>
-                        {state.verificationResult.isExpired ? '✗' : '✓'}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Not Expired</div>
-                    </div>
-                    <div style={{ background: 'var(--input-bg)', padding: '8px', borderRadius: '6px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '16px', fontWeight: '600', color: state.verificationResult.isNotYetValid ? '#ef4444' : '#10b981' }}>
-                        {state.verificationResult.isNotYetValid ? '✗' : '✓'}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Valid Now</div>
-                    </div>
-                  </div>
 
-                  {state.verificationResult.timing && (
-                    <div style={{ marginTop: '12px', background: 'var(--input-bg)', padding: '12px', borderRadius: '8px' }}>
-                      <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>Timing</h4>
-                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                        {state.verificationResult.timing.issued && (
-                          <div>Issued: {state.verificationResult.timing.issued}</div>
-                        )}
-                        {state.verificationResult.timing.expires && (
-                          <div>Expires: {state.verificationResult.timing.expires}</div>
-                        )}
-                        {state.verificationResult.timing.notBefore && (
-                          <div>Not Before: {state.verificationResult.timing.notBefore}</div>
-                        )}
-                      </div>
-                    </div>
+                      {state.verificationResult.timing && (
+                        <div style={{ marginTop: '12px', background: 'var(--input-bg)', padding: '12px', borderRadius: '8px' }}>
+                          <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>Timing</h4>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                            {state.verificationResult.timing.issued && (
+                              <div>Issued: {state.verificationResult.timing.issued}</div>
+                            )}
+                            {state.verificationResult.timing.expires && (
+                              <div>Expires: {state.verificationResult.timing.expires}</div>
+                            )}
+                            {state.verificationResult.timing.notBefore && (
+                              <div>Not Before: {state.verificationResult.timing.notBefore}</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Decode-only specific displays */}
+                  {state.verificationResult.mode === 'decode-only' && (
+                    <>
+                      {state.verificationResult.claims && (
+                        <div style={{ marginTop: '12px', background: 'var(--input-bg)', padding: '12px', borderRadius: '8px' }}>
+                          <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>Standard Claims</h4>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                            {state.verificationResult.claims.iss && <div>{state.verificationResult.claims.iss}</div>}
+                            {state.verificationResult.claims.sub && <div>{state.verificationResult.claims.sub}</div>}
+                            {state.verificationResult.claims.aud && <div>{state.verificationResult.claims.aud}</div>}
+                            {state.verificationResult.claims.jti && <div>{state.verificationResult.claims.jti}</div>}
+                            {state.verificationResult.claims.exp && (
+                              <div style={{ color: state.verificationResult.claims.exp.expired ? '#ef4444' : '#10b981' }}>
+                                Expires: {state.verificationResult.claims.exp.date}
+                                {state.verificationResult.claims.exp.expired ? ' (EXPIRED)' : ''}
+                              </div>
+                            )}
+                            {state.verificationResult.claims.nbf && (
+                              <div style={{ color: state.verificationResult.claims.nbf.active ? '#10b981' : '#f59e0b' }}>
+                                Not Before: {state.verificationResult.claims.nbf.date}
+                                {!state.verificationResult.claims.nbf.active ? ' (NOT YET ACTIVE)' : ''}
+                              </div>
+                            )}
+                            {state.verificationResult.claims.iat && (
+                              <div>Issued At: {state.verificationResult.claims.iat.date}</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {state.verificationResult.x5cInfo && (
+                        <div style={{ marginTop: '12px', background: 'var(--input-bg)', padding: '12px', borderRadius: '8px' }}>
+                          <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>X.509 Certificate Chain (x5c)</h4>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                            <div>Chain Length: {state.verificationResult.x5cInfo.chainLength} certificate(s)</div>
+                            {state.verificationResult.x5cInfo.firstCert && (
+                              <div style={{ 
+                                fontFamily: 'monospace', 
+                                marginTop: '4px',
+                                wordBreak: 'break-all'
+                              }}>
+                                First Certificate: {state.verificationResult.x5cInfo.firstCert}
+                              </div>
+                            )}
+                            <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '4px' }}>
+                              💡 Use "Verify JWT" to automatically extract and use these certificates
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
