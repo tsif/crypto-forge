@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Spinner from './Spinner';
 import OutputCard from './OutputCard';
+import JwtExpirationCalculator from './JwtExpirationCalculator';
 
 function JwtBuilder({ 
   verifyOnly = false,
@@ -814,21 +815,24 @@ function JwtBuilder({
               const fieldStyle = {
                 display: 'flex',
                 flexDirection: 'column',
+                alignItems: 'flex-start',
                 width: '100%'
               };
               
               const labelContainerStyle = {
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
+                justifyContent: 'flex-start',
                 marginBottom: '8px',
-                minHeight: '24px' // Ensure consistent label height
+                minHeight: '24px', // Ensure consistent label height
+                width: '100%'
               };
               
               return (
                 <>
-                  <div className="field" style={fieldStyle}>
+                  <div style={fieldStyle}>
                     <div style={labelContainerStyle}>
-                      <label style={{ margin: 0 }}>JWT to Verify</label>
+                      <label style={{ margin: 0, textAlign: 'left' }}>JWT to Verify</label>
                     </div>
                     <textarea
                       value={state.jwtToVerify}
@@ -859,9 +863,9 @@ function JwtBuilder({
                     />
                   </div>
 
-                  <div className="field" style={{ ...fieldStyle, marginTop: '16px' }}>
+                  <div style={{ ...fieldStyle, marginTop: '16px' }}>
                     <div style={labelContainerStyle}>
-                      <label style={{ margin: 0 }}>Verification Key (Public Key JWK)</label>
+                      <label style={{ margin: 0, textAlign: 'left' }}>Verification Key (Public Key JWK)</label>
                       {state.x5cExtracted && (
                         <span style={{ color: '#10b981', fontSize: '12px', marginLeft: '8px' }}>
                           ✓ Auto-extracted from x5c
@@ -1086,6 +1090,15 @@ function JwtBuilder({
                 </>
               )}
             </section>
+          )}
+
+          {/* JWT Expiration Calculator - show when we have verification results with timing data */}
+          {state.verificationResult && state.verificationResult.payload && (
+            <JwtExpirationCalculator
+              exp={state.verificationResult.payload.exp}
+              nbf={state.verificationResult.payload.nbf}
+              iat={state.verificationResult.payload.iat}
+            />
           )}
         </>
       )}
