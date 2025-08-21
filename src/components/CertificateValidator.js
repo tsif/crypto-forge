@@ -3,6 +3,7 @@ import * as cryptoUtils from '../utils/cryptoUtils';
 import Spinner from './Spinner';
 import { ASN1Parser, parseOid, parseTime, parseString, parseInteger, parseBitString, parseDN } from '../utils/asn1Parser';
 import { CertificateChainValidator } from '../utils/certChainValidator';
+import CertificateChainViewer from './CertificateChainViewer';
 
 function CertificateValidator({ certInput = '', setCertInput, validationResult = null, setValidationResult }) {
   // Use props if provided, otherwise fall back to local state for backward compatibility
@@ -567,6 +568,11 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
                     </div>
                   )}
 
+                  {/* Certificate Chain Visualization */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <CertificateChainViewer certificates={result.certificates.filter(cert => !cert.error)} />
+                  </div>
+
                   {/* Individual Certificates */}
                   <div>
                     <h4 style={{ fontSize: '14px', margin: '16px 0 8px 0' }}>Certificate Details</h4>
@@ -616,7 +622,13 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
                 </div>
               ) : (
                 /* Single Certificate Display */
-                <div className="validation-details" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <>
+                  {/* Single Certificate Visualization */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <CertificateChainViewer certificates={[result.certificate]} />
+                  </div>
+                  
+                  <div className="validation-details" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div className="field">
                     <strong style={{ minWidth: '150px', display: 'inline-block' }}>Version:</strong>
                     <span>v{result.certificate.version}</span>
@@ -731,6 +743,7 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
                   </span>
                 </div>
                 </div>
+                </>
               )}
             </div>
           ) : (

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Minimalist key icon optimized for small display -->
+  <g fill="#2563eb">
+    <!-- Key head with inner hole -->
+    <path d="M 25 35 
+             A 15 15 0 0 1 55 50
+             A 15 15 0 0 1 25 65
+             A 15 15 0 0 1 25 35
+             Z
+             M 25 42
+             A 8 8 0 0 0 25 58
+             A 8 8 0 0 0 25 42
+             Z"
+          fill-rule="evenodd"/>
+    <!-- Key shaft and teeth -->
+    <rect x="40" y="46" width="45" height="8" />
+    <!-- Key teeth (simplified for clarity at small sizes) -->
+    <rect x="75" y="46" width="5" height="14" />
+    <rect x="68" y="46" width="5" height="11" />
+    <rect x="82" y="46" width="5" height="16" />
+  </g>
+</svg>
