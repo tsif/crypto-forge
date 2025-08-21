@@ -3,8 +3,8 @@ import React from 'react';
 function SegmentedControl({ activeTab, onTabChange }) {
   const tabs = [
     { id: 'generate', label: 'Generate Keys' },
-    { id: 'pem-convert', label: 'PEM → JWK / JWKS' },
     { id: 'jwt-verify', label: 'Verify JWT' },
+    { id: 'pem-convert', label: 'PEM → JWK / JWKS' },
     { id: 'validate-jwk', label: 'Validate JWK' },
     { id: 'validate-jwks', label: 'Validate JWKS' },
     { id: 'validate-cert', label: 'Validate Certificate' }

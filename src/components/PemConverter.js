@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import OutputCard from './OutputCard';
 import Spinner from './Spinner';
 import KeyStrengthAnalyzer from './KeyStrengthAnalyzer';
+import ExplainButton from './ExplainButton';
 
 function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, error, showToast, pemInput, setPemInput }) {
   const [inputError, setInputError] = useState(null);
@@ -91,7 +92,10 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
   return (
     <>
       <section className="card" style={{ marginTop: '12px' }}>
-        <h2>PEM → JWK / JWKS</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <h2 style={{ margin: 0 }}>PEM → JWK / JWKS</h2>
+          <ExplainButton concept="pem" />
+        </div>
         <p className="muted">
           Paste or upload a <strong>PUBLIC KEY</strong> (SPKI), <strong>PRIVATE KEY</strong> (PKCS#8), or <strong>CERTIFICATE</strong> PEM to convert. 
           Works for RSA and EC keys. For certificates, the public key will be extracted. If a private key is provided, a corresponding public JWK and SPKI PEM will be derived.

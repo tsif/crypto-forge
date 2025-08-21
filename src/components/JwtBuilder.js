@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import Spinner from './Spinner';
 import OutputCard from './OutputCard';
 import JwtExpirationCalculator from './JwtExpirationCalculator';
+import ExplainButton from './ExplainButton';
+import CommonMistakesWarning from './CommonMistakesWarning';
 
 function JwtBuilder({ 
   verifyOnly = false,
@@ -15,7 +17,7 @@ function JwtBuilder({
 }) {
   // Use props if provided, otherwise fall back to local state
   const [localState, setLocalState] = useState({
-    activeSubTab: verifyOnly ? 'verify' : 'create',
+    activeSubTab: 'verify',
     // Create JWT state
     selectedKeyId: '',
     customKey: '',
@@ -625,7 +627,10 @@ function JwtBuilder({
   return (
     <>
       <section className="card" style={{ marginTop: '12px' }}>
-        <h2>{verifyOnly ? 'JWT Verifier' : 'JWT Builder'}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <h2 style={{ margin: 0 }}>{verifyOnly ? 'JWT Verifier' : 'JWT Builder'}</h2>
+          <ExplainButton concept="jwt" />
+        </div>
         <p className="muted">
           {verifyOnly 
             ? 'Verify JSON Web Tokens using your generated keys or custom keys. Supports RSA and EC algorithms with proper signature verification.'
@@ -637,17 +642,17 @@ function JwtBuilder({
         {!verifyOnly && (
           <div className="segmented-control" style={{ marginTop: '16px' }}>
             <button
+              className={`segment ${state.activeSubTab === 'verify' ? 'active' : ''}`}
+              onClick={() => updateState({ activeSubTab: 'verify' })}
+            >
+              Verify JWT
+            </button>
+            <button
               className={`segment ${state.activeSubTab === 'create' ? 'active' : ''}`}
               onClick={() => updateState({ activeSubTab: 'create' })}
             >
               Create JWT
             </button>
-            <button
-              className={`segment ${state.activeSubTab === 'verify' ? 'active' : ''}`}
-              onClick={() => updateState({ activeSubTab: 'verify' })}
-            >
-            Verify JWT
-          </button>
           </div>
         )}
       </section>
@@ -1100,6 +1105,9 @@ function JwtBuilder({
               iat={state.verificationResult.payload.iat}
             />
           )}
+
+          {/* Educational Components */}
+          <CommonMistakesWarning context="jwt" />
         </>
       )}
     </>

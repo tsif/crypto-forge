@@ -1,6 +1,8 @@
 import React from 'react';
 import Spinner from './Spinner';
 import KeyStrengthMeter from './KeyStrengthMeter';
+import ExplainButton from './ExplainButton';
+import CommonMistakesWarning from './CommonMistakesWarning';
 
 function Controls({
   algorithm,
@@ -26,7 +28,10 @@ function Controls({
       <h2>Generate Keys</h2>
       <div className="controls-grid">
         <div className="field">
-          <label htmlFor="kind">Algorithm</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+            <label htmlFor="kind">Algorithm</label>
+            <ExplainButton concept={algorithm.toLowerCase()} compact={true} />
+          </div>
           <select 
             id="kind" 
             value={algorithm} 
@@ -40,7 +45,9 @@ function Controls({
         {isRSA && (
           <>
             <div className="field">
-              <label htmlFor="rsaBits">Modulus</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                <label htmlFor="rsaBits">Modulus</label>
+              </div>
               <select 
                 id="rsaBits" 
                 value={rsaBits} 
@@ -53,7 +60,9 @@ function Controls({
             </div>
 
             <div className="field">
-              <label htmlFor="rsaHash">Hash</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                <label htmlFor="rsaHash">Hash</label>
+              </div>
               <select 
                 id="rsaHash" 
                 value={rsaHash} 
@@ -69,7 +78,9 @@ function Controls({
 
         {!isRSA && (
           <div className="field">
-            <label htmlFor="ecCurve">Curve</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+              <label htmlFor="ecCurve">Curve</label>
+            </div>
             <select 
               id="ecCurve" 
               value={ecCurve} 
@@ -83,7 +94,10 @@ function Controls({
         )}
 
         <div className="field">
-          <label htmlFor="keyUse">Key Use</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+            <label htmlFor="keyUse">Key Use</label>
+            <ExplainButton concept="key-use" compact={true} />
+          </div>
           <select 
             id="keyUse" 
             value={keyUse} 
@@ -95,18 +109,12 @@ function Controls({
         </div>
 
         <div className="field">
-          <label>alg</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+            <label>alg</label>
+          </div>
           <div className="badge">{alg}</div>
         </div>
       </div>
-
-      {/* Key Strength Analysis */}
-      <KeyStrengthMeter 
-        keyType={algorithm}
-        keySize={isRSA ? parseInt(rsaBits) : null}
-        curve={!isRSA ? ecCurve : null}
-        showRecommendations={true}
-      />
 
       <div className="actions">
         <button 
@@ -125,6 +133,23 @@ function Controls({
         </button>
         <span className="muted">{message}</span>
       </div>
+
+      {/* Key Strength Analysis */}
+      <KeyStrengthMeter 
+        keyType={algorithm}
+        keySize={isRSA ? parseInt(rsaBits) : null}
+        curve={!isRSA ? ecCurve : null}
+        showRecommendations={true}
+      />
+
+      {/* Common Mistakes Warning */}
+      <CommonMistakesWarning
+        algorithm={algorithm}
+        keyUse={keyUse}
+        rsaBits={rsaBits}
+        curve={ecCurve}
+        context="generation"
+      />
     </section>
   );
 }
