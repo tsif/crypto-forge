@@ -54,7 +54,7 @@ body {
   transition: background 0.3s ease, color 0.3s ease, font-size 0.3s ease;
   min-height: 100vh;
   padding-top: 120px; /* Space for fixed navbar */
-  padding-bottom: 200px; /* Space for fixed footer on desktop */
+  padding-bottom: 280px; /* Space for fixed footer on desktop */
 }
 
 @media (max-width: 768px) {

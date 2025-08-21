@@ -13,31 +13,49 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
     }
 
     const trimmed = input.trim();
-    const hasBegin = /-----BEGIN (PUBLIC|PRIVATE) KEY-----/.test(trimmed);
-    const hasEnd = /-----END (PUBLIC|PRIVATE) KEY-----/.test(trimmed);
+    const hasKeyBegin = /-----BEGIN (PUBLIC|PRIVATE) KEY-----/.test(trimmed);
+    const hasKeyEnd = /-----END (PUBLIC|PRIVATE) KEY-----/.test(trimmed);
+    const hasCertBegin = /-----BEGIN CERTIFICATE-----/.test(trimmed);
+    const hasCertEnd = /-----END CERTIFICATE-----/.test(trimmed);
     
-    if (!hasBegin && !hasEnd) {
-      setInputError('PEM format must start with "-----BEGIN PUBLIC KEY-----" or "-----BEGIN PRIVATE KEY-----"');
+    if (!hasKeyBegin && !hasKeyEnd && !hasCertBegin && !hasCertEnd) {
+      setInputError('PEM format must be PUBLIC KEY, PRIVATE KEY, or CERTIFICATE');
       return;
     }
     
-    if (!hasBegin) {
-      setInputError('Missing PEM header (-----BEGIN PUBLIC/PRIVATE KEY-----)');
-      return;
-    }
-    
-    if (!hasEnd) {
-      setInputError('Missing PEM footer (-----END PUBLIC/PRIVATE KEY-----)');
-      return;
-    }
+    // Validate key PEMs
+    if (hasKeyBegin || hasKeyEnd) {
+      if (!hasKeyBegin) {
+        setInputError('Missing PEM header (-----BEGIN PUBLIC/PRIVATE KEY-----)');
+        return;
+      }
+      
+      if (!hasKeyEnd) {
+        setInputError('Missing PEM footer (-----END PUBLIC/PRIVATE KEY-----)');
+        return;
+      }
 
-    // Check if begin and end match
-    const beginMatch = trimmed.match(/-----BEGIN (PUBLIC|PRIVATE) KEY-----/);
-    const endMatch = trimmed.match(/-----END (PUBLIC|PRIVATE) KEY-----/);
+      // Check if begin and end match
+      const beginMatch = trimmed.match(/-----BEGIN (PUBLIC|PRIVATE) KEY-----/);
+      const endMatch = trimmed.match(/-----END (PUBLIC|PRIVATE) KEY-----/);
+      
+      if (beginMatch && endMatch && beginMatch[1] !== endMatch[1]) {
+        setInputError('PEM header and footer type mismatch');
+        return;
+      }
+    }
     
-    if (beginMatch && endMatch && beginMatch[1] !== endMatch[1]) {
-      setInputError('PEM header and footer type mismatch');
-      return;
+    // Validate certificate PEMs
+    if (hasCertBegin || hasCertEnd) {
+      if (!hasCertBegin) {
+        setInputError('Missing certificate header (-----BEGIN CERTIFICATE-----)');
+        return;
+      }
+      
+      if (!hasCertEnd) {
+        setInputError('Missing certificate footer (-----END CERTIFICATE-----)');
+        return;
+      }
     }
 
     setInputError(null);
@@ -75,13 +93,13 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
       <section className="card" style={{ marginTop: '12px' }}>
         <h2>PEM → JWK / JWKS</h2>
         <p className="muted">
-          Paste or upload a <strong>PUBLIC KEY</strong> (SPKI) or <strong>PRIVATE KEY</strong> (PKCS#8) PEM to convert. 
-          Works for RSA and EC keys. If the private key is provided, a corresponding public JWK and SPKI PEM will be derived.
+          Paste or upload a <strong>PUBLIC KEY</strong> (SPKI), <strong>PRIVATE KEY</strong> (PKCS#8), or <strong>CERTIFICATE</strong> PEM to convert. 
+          Works for RSA and EC keys. For certificates, the public key will be extracted. If a private key is provided, a corresponding public JWK and SPKI PEM will be derived.
         </p>
         <div className="actions" style={{ marginTop: '8px' }}>
           <input 
             type="file" 
-            accept=".pem,.key,.txt" 
+            accept=".pem,.key,.crt,.cer,.txt" 
             onChange={handleFileChange}
           />
           <button 
@@ -104,7 +122,7 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
           <textarea 
             value={pemInput}
             onChange={handleInputChange}
-            placeholder={`-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----`}
+            placeholder={`-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n\nor\n\n-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----`}
           />
           {inputError && (
             <div className="error-message">

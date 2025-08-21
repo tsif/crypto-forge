@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Controls from './components/Controls';
 import OutputCard from './components/OutputCard';
 import PemConverter from './components/PemConverter';
+import JwtBuilder from './components/JwtBuilder';
 import KeyValidator from './components/KeyValidator';
 import JwksValidator from './components/JwksValidator';
 import CertificateValidator from './components/CertificateValidator';
@@ -132,6 +133,13 @@ function App() {
     certInput: '',
     validationResult: null
   });
+  
+  const [jwtVerifyState, setJwtVerifyState] = useState({
+    jwtToVerify: '',
+    verificationKey: '',
+    verificationResult: null,
+    x5cExtracted: null
+  });
 
   const getAlg = () => {
     if (algorithm === 'RSA') {
@@ -147,6 +155,183 @@ function App() {
     }
     // For EC, algorithm doesn't change with use (ECDH doesn't have standard JWA alg values)
     return cryptoUtils.algForSelection('EC', ecCurve);
+  };
+
+  // Extract public key from X.509 certificate DER
+  const extractPublicKeyFromCertificate = (certDer) => {
+    // Parse X.509 certificate to extract SubjectPublicKeyInfo
+    // X.509 Certificate structure:
+    // Certificate ::= SEQUENCE {
+    //   tbsCertificate       TBSCertificate,
+    //   signatureAlgorithm   AlgorithmIdentifier,
+    //   signatureValue       BIT STRING  
+    // }
+    // TBSCertificate ::= SEQUENCE {
+    //   ...
+    //   subjectPublicKeyInfo SubjectPublicKeyInfo,
+    //   ...
+    // }
+    
+    const view = new DataView(certDer);
+    let offset = 0;
+    
+    // Parse outer SEQUENCE
+    if (view.getUint8(offset) !== 0x30) throw new Error('Invalid certificate: expected SEQUENCE');
+    offset++;
+    
+    // Skip length of outer sequence
+    parseLength(view, offset);
+    offset += getLengthBytes(view, offset);
+    
+    // Parse tbsCertificate SEQUENCE
+    if (view.getUint8(offset) !== 0x30) throw new Error('Invalid certificate: expected tbsCertificate SEQUENCE');
+    offset++;
+    
+    parseLength(view, offset);
+    offset += getLengthBytes(view, offset);
+    
+    // Skip version (optional, context tag [0])
+    if (view.getUint8(offset) === 0xa0) {
+      offset++;
+      const versionLength = parseLength(view, offset);
+      offset += getLengthBytes(view, offset) + versionLength;
+    }
+    
+    // Skip serialNumber (INTEGER)
+    if (view.getUint8(offset) !== 0x02) throw new Error('Invalid certificate: expected serialNumber INTEGER');
+    offset++;
+    const serialLength = parseLength(view, offset);
+    offset += getLengthBytes(view, offset) + serialLength;
+    
+    // Skip signature (SEQUENCE)
+    if (view.getUint8(offset) !== 0x30) throw new Error('Invalid certificate: expected signature SEQUENCE');
+    offset++;
+    const sigLength = parseLength(view, offset);
+    offset += getLengthBytes(view, offset) + sigLength;
+    
+    // Skip issuer (SEQUENCE)
+    if (view.getUint8(offset) !== 0x30) throw new Error('Invalid certificate: expected issuer SEQUENCE');
+    offset++;
+    const issuerLength = parseLength(view, offset);
+    offset += getLengthBytes(view, offset) + issuerLength;
+    
+    // Skip validity (SEQUENCE)
+    if (view.getUint8(offset) !== 0x30) throw new Error('Invalid certificate: expected validity SEQUENCE');
+    offset++;
+    const validityLength = parseLength(view, offset);
+    offset += getLengthBytes(view, offset) + validityLength;
+    
+    // Skip subject (SEQUENCE)
+    if (view.getUint8(offset) !== 0x30) throw new Error('Invalid certificate: expected subject SEQUENCE');
+    offset++;
+    const subjectLength = parseLength(view, offset);
+    offset += getLengthBytes(view, offset) + subjectLength;
+    
+    // Now we should be at subjectPublicKeyInfo (SEQUENCE)
+    if (view.getUint8(offset) !== 0x30) throw new Error('Invalid certificate: expected subjectPublicKeyInfo SEQUENCE');
+    const spkiStart = offset;
+    offset++;
+    
+    const spkiLength = parseLength(view, offset);
+    offset += getLengthBytes(view, offset);
+    
+    // Extract the complete SubjectPublicKeyInfo
+    return certDer.slice(spkiStart, spkiStart + 1 + getLengthBytes(view, spkiStart + 1) + spkiLength);
+  };
+  
+  // Helper functions for ASN.1 parsing
+  const parseLength = (view, offset) => {
+    const firstByte = view.getUint8(offset);
+    if ((firstByte & 0x80) === 0) {
+      // Short form
+      return firstByte;
+    } else {
+      // Long form
+      const lengthBytes = firstByte & 0x7f;
+      let length = 0;
+      for (let i = 1; i <= lengthBytes; i++) {
+        length = (length << 8) | view.getUint8(offset + i);
+      }
+      return length;
+    }
+  };
+  
+  const getLengthBytes = (view, offset) => {
+    const firstByte = view.getUint8(offset);
+    if ((firstByte & 0x80) === 0) {
+      return 1; // Short form uses 1 byte
+    } else {
+      return 1 + (firstByte & 0x7f); // Long form uses 1 + n bytes
+    }
+  };
+
+  // Get available keys for JWT Builder
+  const getAvailableKeys = () => {
+    const keys = [];
+
+    // Add keys from key generation
+    if (outputs.publicJwkObject) {
+      const keyDesc = `Generated ${outputs.publicJwkObject.kty} ${
+        outputs.publicJwkObject.kty === 'RSA' 
+          ? `${outputs.publicJwkObject.n ? Math.ceil(atob(outputs.publicJwkObject.n.replace(/-/g, '+').replace(/_/g, '/')).length * 8) : 'Unknown'}-bit`
+          : outputs.publicJwkObject.crv
+      } (${outputs.publicJwkObject.use || 'sig'})`;
+      
+      // Add both public and private keys if available
+      if (outputs.privateJwk) {
+        try {
+          const privateJwk = JSON.parse(outputs.privateJwk);
+          keys.push({
+            id: `generated-private-${Date.now()}`,
+            label: `${keyDesc} - Private Key`,
+            jwk: privateJwk,
+            type: 'private'
+          });
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+      
+      keys.push({
+        id: `generated-public-${Date.now()}`,
+        label: `${keyDesc} - Public Key`,
+        jwk: outputs.publicJwkObject,
+        type: 'public'
+      });
+    }
+
+    // Add keys from PEM conversion
+    if (pemConversionOutputs.publicJwkObject) {
+      const keyDesc = `Converted ${pemConversionOutputs.publicJwkObject.kty} ${
+        pemConversionOutputs.publicJwkObject.kty === 'RSA' 
+          ? `${pemConversionOutputs.publicJwkObject.n ? Math.ceil(atob(pemConversionOutputs.publicJwkObject.n.replace(/-/g, '+').replace(/_/g, '/')).length * 8) : 'Unknown'}-bit`
+          : pemConversionOutputs.publicJwkObject.crv
+      } (${pemConversionOutputs.publicJwkObject.use || 'sig'})`;
+      
+      // Add both public and private keys if available
+      if (pemConversionOutputs.privateJwk) {
+        try {
+          const privateJwk = JSON.parse(pemConversionOutputs.privateJwk);
+          keys.push({
+            id: `converted-private-${Date.now()}`,
+            label: `${keyDesc} - Private Key`,
+            jwk: privateJwk,
+            type: 'private'
+          });
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+      
+      keys.push({
+        id: `converted-public-${Date.now()}`,
+        label: `${keyDesc} - Public Key`,
+        jwk: pemConversionOutputs.publicJwkObject,
+        type: 'public'
+      });
+    }
+
+    return keys;
   };
 
   const clearOutputs = () => {
@@ -293,21 +478,47 @@ function App() {
     
     try {
       const { der, label } = cryptoUtils.pemToDer(pemText);
-      const format = /PUBLIC KEY/.test(label) ? 'spki' : /PRIVATE KEY/.test(label) ? 'pkcs8' : null;
+      const format = /PUBLIC KEY/.test(label) ? 'spki' : 
+                   /PRIVATE KEY/.test(label) ? 'pkcs8' : 
+                   /CERTIFICATE/.test(label) ? 'x509' : null;
       
-      if (!format) throw new Error('PEM must be PUBLIC KEY or PRIVATE KEY.');
+      if (!format) throw new Error('PEM must be PUBLIC KEY, PRIVATE KEY, or CERTIFICATE.');
       
       const isPrivate = format === 'pkcs8';
+      const isCertificate = format === 'x509';
       
-      let imported = await cryptoUtils.tryImportRSA(format, der, isPrivate);
-      let family = 'RSA';
+      let imported, family, publicKeyDer;
       
-      if (!imported) {
-        imported = await cryptoUtils.tryImportEC(format, der, isPrivate);
-        family = 'EC';
+      if (isCertificate) {
+        // Extract public key from certificate
+        try {
+          publicKeyDer = extractPublicKeyFromCertificate(der);
+          
+          // Try to import the extracted public key
+          imported = await cryptoUtils.tryImportRSA('spki', publicKeyDer, false);
+          family = 'RSA';
+          
+          if (!imported) {
+            imported = await cryptoUtils.tryImportEC('spki', publicKeyDer, false);
+            family = 'EC';
+          }
+          
+          if (!imported) throw new Error('Failed to extract or import public key from certificate.');
+        } catch (e) {
+          throw new Error(`Failed to process certificate: ${e.message}`);
+        }
+      } else {
+        // Handle regular key PEMs
+        imported = await cryptoUtils.tryImportRSA(format, der, isPrivate);
+        family = 'RSA';
+        
+        if (!imported) {
+          imported = await cryptoUtils.tryImportEC(format, der, isPrivate);
+          family = 'EC';
+        }
+        
+        if (!imported) throw new Error('Failed to import key. Unsupported algorithm or malformed PEM.');
       }
-      
-      if (!imported) throw new Error('Failed to import key. Unsupported algorithm or malformed PEM.');
 
       const jwk = await crypto.subtle.exportKey('jwk', imported.key);
       const jwkPriv = isPrivate ? jwk : null;
@@ -349,6 +560,9 @@ function App() {
         );
         const spki = await crypto.subtle.exportKey('spki', pubKey);
         pubPemOut = cryptoUtils.derToPem(spki, 'PUBLIC KEY');
+      } else if (isCertificate) {
+        // For certificates, use the extracted public key DER
+        pubPemOut = cryptoUtils.derToPem(publicKeyDer, 'PUBLIC KEY');
       } else {
         pubPemOut = cryptoUtils.derToPem(der, 'PUBLIC KEY');
       }
@@ -369,7 +583,7 @@ function App() {
         publicJwkObject: jwkPub
       });
 
-      setMessage('PEM converted successfully.');
+      setMessage(isCertificate ? 'Certificate processed - public key extracted successfully.' : 'PEM converted successfully.');
     } catch (e) {
       console.error(e);
       setPemConversionError(e.message || String(e));
@@ -386,7 +600,7 @@ function App() {
           <div className="nav-content">
             <h1>CryptoForge — Your Complete Key & Certificate Toolkit</h1>
             <p className="nav-subtitle">
-              Generate keypairs, convert between JWK/PEM formats, validate keys, and decode X.509 certificates. 
+              Generate keypairs, convert between JWK/PEM formats, verify JWTs, validate keys, and decode X.509 certificates. 
               All cryptographic operations run securely in your browser.
             </p>
           </div>
@@ -497,6 +711,17 @@ function App() {
           />
         )}
 
+        {activeTab === 'jwt-verify' && (
+          <JwtBuilder 
+            verifyOnly={true}
+            availableKeys={getAvailableKeys()}
+            jwtVerifyState={jwtVerifyState}
+            setJwtVerifyState={setJwtVerifyState}
+            showToast={showToast}
+            setMessage={setMessage}
+          />
+        )}
+
         {activeTab === 'validate-jwk' && (
           <KeyValidator 
             keyInput={keyValidatorState.keyInput}
@@ -545,6 +770,7 @@ function App() {
             <li>Public PEMs are <code>SubjectPublicKeyInfo</code> (<code>BEGIN PUBLIC KEY</code>). Private PEMs are PKCS#8 (<code>BEGIN PRIVATE KEY</code>).</li>
             <li><strong>Never</strong> publish a JWKS that contains private keys. The "JWK Set (Keypair)" is for local testing only.</li>
             <li>Certificate validation parses X.509 structure and displays properties. <strong>Always verify</strong> certificate chain and CRL status separately.</li>
+            <li>JWT verification supports RSA and EC algorithms. Public keys are auto-extracted from <code>x5c</code> certificate chains when present in JWT headers.</li>
             <li>Imported PEMs and certificates are auto-detected (RSA or EC). For RSA, RSASSA-PKCS1-v1_5, RSA-PSS, or RSA-OAEP are accepted. For EC, P‑256/P‑384/P‑521 are supported.</li>
             <li>The <code>alg</code> on imported keys is inferred (e.g., RS256 for RSA; ES256/384/512 for EC) and may not match the original usage.</li>
           </ul>
