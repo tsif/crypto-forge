@@ -615,3 +615,23 @@ code {
     margin-top: 8px;
   }
 }
+
+/* Copy Dropdown */
+.copy-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.copy-dropdown button {
+  white-space: nowrap;
+}
+
+/* Ensure dropdown appears above other elements */
+.copy-dropdown > div {
+  z-index: 1001;
+}
+
+/* Smooth hover transitions for dropdown items */
+.copy-dropdown button:hover {
+  background: var(--input-bg) !important;
+}
