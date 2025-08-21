@@ -1,5 +1,6 @@
 import React from 'react';
 import Spinner from './Spinner';
+import KeyStrengthMeter from './KeyStrengthMeter';
 
 function Controls({
   algorithm,
@@ -98,6 +99,14 @@ function Controls({
           <div className="badge">{alg}</div>
         </div>
       </div>
+
+      {/* Key Strength Analysis */}
+      <KeyStrengthMeter 
+        keyType={algorithm}
+        keySize={isRSA ? parseInt(rsaBits) : null}
+        curve={!isRSA ? ecCurve : null}
+        showRecommendations={true}
+      />
 
       <div className="actions">
         <button 
