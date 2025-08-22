@@ -487,12 +487,13 @@ function App() {
     try {
       const { der, label } = cryptoUtils.pemToDer(pemText);
       const format = /PUBLIC KEY/.test(label) ? 'spki' : 
-                   /PRIVATE KEY/.test(label) ? 'pkcs8' : 
+                   /^PRIVATE KEY$/.test(label) ? 'pkcs8' : 
+                   /RSA PRIVATE KEY/.test(label) ? 'pkcs1' :
                    /CERTIFICATE/.test(label) ? 'x509' : null;
       
-      if (!format) throw new Error('PEM must be PUBLIC KEY, PRIVATE KEY, or CERTIFICATE.');
+      if (!format) throw new Error('PEM must be PUBLIC KEY, PRIVATE KEY, RSA PRIVATE KEY, or CERTIFICATE.');
       
-      const isPrivate = format === 'pkcs8';
+      const isPrivate = format === 'pkcs8' || format === 'pkcs1';
       const isCertificate = format === 'x509';
       
       let imported, family, publicKeyDer;

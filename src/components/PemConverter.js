@@ -16,15 +16,17 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
     const trimmed = input.trim();
     const hasKeyBegin = /-----BEGIN (PUBLIC|PRIVATE) KEY-----/.test(trimmed);
     const hasKeyEnd = /-----END (PUBLIC|PRIVATE) KEY-----/.test(trimmed);
+    const hasRsaKeyBegin = /-----BEGIN RSA (PUBLIC|PRIVATE) KEY-----/.test(trimmed);
+    const hasRsaKeyEnd = /-----END RSA (PUBLIC|PRIVATE) KEY-----/.test(trimmed);
     const hasCertBegin = /-----BEGIN CERTIFICATE-----/.test(trimmed);
     const hasCertEnd = /-----END CERTIFICATE-----/.test(trimmed);
     
-    if (!hasKeyBegin && !hasKeyEnd && !hasCertBegin && !hasCertEnd) {
-      setInputError('PEM format must be PUBLIC KEY, PRIVATE KEY, or CERTIFICATE');
+    if (!hasKeyBegin && !hasKeyEnd && !hasRsaKeyBegin && !hasRsaKeyEnd && !hasCertBegin && !hasCertEnd) {
+      setInputError('PEM format must be PUBLIC KEY, PRIVATE KEY, RSA PRIVATE KEY, or CERTIFICATE');
       return;
     }
     
-    // Validate key PEMs
+    // Validate PKCS#8 key PEMs
     if (hasKeyBegin || hasKeyEnd) {
       if (!hasKeyBegin) {
         setInputError('Missing PEM header (-----BEGIN PUBLIC/PRIVATE KEY-----)');
@@ -39,6 +41,28 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
       // Check if begin and end match
       const beginMatch = trimmed.match(/-----BEGIN (PUBLIC|PRIVATE) KEY-----/);
       const endMatch = trimmed.match(/-----END (PUBLIC|PRIVATE) KEY-----/);
+      
+      if (beginMatch && endMatch && beginMatch[1] !== endMatch[1]) {
+        setInputError('PEM header and footer type mismatch');
+        return;
+      }
+    }
+
+    // Validate PKCS#1 RSA key PEMs
+    if (hasRsaKeyBegin || hasRsaKeyEnd) {
+      if (!hasRsaKeyBegin) {
+        setInputError('Missing PEM header (-----BEGIN RSA PUBLIC/PRIVATE KEY-----)');
+        return;
+      }
+      
+      if (!hasRsaKeyEnd) {
+        setInputError('Missing PEM footer (-----END RSA PUBLIC/PRIVATE KEY-----)');
+        return;
+      }
+
+      // Check if begin and end match
+      const beginMatch = trimmed.match(/-----BEGIN RSA (PUBLIC|PRIVATE) KEY-----/);
+      const endMatch = trimmed.match(/-----END RSA (PUBLIC|PRIVATE) KEY-----/);
       
       if (beginMatch && endMatch && beginMatch[1] !== endMatch[1]) {
         setInputError('PEM header and footer type mismatch');
@@ -97,7 +121,7 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
           <ExplainButton concept="pem" />
         </div>
         <p className="muted">
-          Paste or upload a <strong>PUBLIC KEY</strong> (SPKI), <strong>PRIVATE KEY</strong> (PKCS#8), or <strong>CERTIFICATE</strong> PEM to convert. 
+          Paste or upload a <strong>PUBLIC KEY</strong> (SPKI), <strong>PRIVATE KEY</strong> (PKCS#8), <strong>RSA PRIVATE KEY</strong> (PKCS#1), or <strong>CERTIFICATE</strong> PEM to convert. 
           Works for RSA and EC keys. For certificates, the public key will be extracted. If a private key is provided, a corresponding public JWK and SPKI PEM will be derived.
         </p>
         <div className="actions" style={{ marginTop: '8px' }}>
@@ -126,7 +150,7 @@ function PemConverter({ onConvert, busy, outputs, setMessage, onClearOutputs, er
           <textarea 
             value={pemInput}
             onChange={handleInputChange}
-            placeholder={`-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n\nor\n\n-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----`}
+            placeholder={`-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n\nor\n\n-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n\nor\n\n-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----`}
           />
           {inputError && (
             <div className="error-message">
