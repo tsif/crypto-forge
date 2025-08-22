@@ -30,7 +30,6 @@ function Controls({
         <div className="field">
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
             <label htmlFor="kind">Algorithm</label>
-            <ExplainButton concept={algorithm.toLowerCase()} compact={true} />
           </div>
           <select 
             id="kind" 
@@ -40,6 +39,7 @@ function Controls({
             <option value="RSA">RSA</option>
             <option value="EC">EC (ECDSA)</option>
           </select>
+           <ExplainButton concept={algorithm.toLowerCase()} compact={true} />
         </div>
 
         {isRSA && (
@@ -96,7 +96,6 @@ function Controls({
         <div className="field">
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
             <label htmlFor="keyUse">Key Use</label>
-            <ExplainButton concept="key-use" compact={true} />
           </div>
           <select 
             id="keyUse" 
@@ -106,6 +105,7 @@ function Controls({
             <option value="sig">Signature (sig)</option>
             <option value="enc">Encryption (enc)</option>
           </select>
+          <ExplainButton concept="key-use" compact={true} />
         </div>
 
         <div className="field">

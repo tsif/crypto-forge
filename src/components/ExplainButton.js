@@ -1,7 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function ExplainButton({ concept, title, compact = false, position = 'left' }) {
   const [showExplanation, setShowExplanation] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  // Listen for window resize to update mobile state
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Don't render on mobile
+  if (isMobile) {
+    return null;
+  }
 
   // Educational content for different concepts
   const explanations = {

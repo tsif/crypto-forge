@@ -114,10 +114,10 @@ function CommonMistakesWarning({ algorithm, keyUse, rsaBits, curve, context = 'g
 
   const getTypeIcon = (type) => {
     switch (type) {
-      case 'security': return '🛡️';
-      case 'recommendation': return '💡';
-      case 'best-practice': return '✨';
-      case 'info': return 'ℹ️';
+      case 'security': return '●';
+      case 'recommendation': return '▲';
+      case 'best-practice': return '★';
+      case 'info': return '■';
       default: return '•';
     }
   };

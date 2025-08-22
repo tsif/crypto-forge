@@ -39,7 +39,8 @@ function ScrollIndicator({ show, message = "Scroll down to view generated keys" 
     <div style={{
       position: 'fixed',
       bottom: '30px',
-      right: '30px',
+      left: '50%',
+      transform: 'translateX(-50%)',
       background: 'var(--card)',
       border: '1px solid var(--line)',
       borderRadius: '12px',
