@@ -11,6 +11,7 @@ import ThemeToggle from './components/ThemeToggle';
 import FontSizeToggle from './components/FontSizeToggle';
 import Toast from './components/Toast';
 import KeyStrengthAnalyzer from './components/KeyStrengthAnalyzer';
+import ScrollIndicator from './components/ScrollIndicator';
 import * as cryptoUtils from './utils/cryptoUtils';
 import './App.css';
 
@@ -101,6 +102,9 @@ function App() {
     openssh: '',
     publicJwkObject: null
   });
+
+  // State for scroll indicator
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
 
   const [pemConversionOutputs, setPemConversionOutputs] = useState({
     privateJwk: '',
@@ -346,6 +350,7 @@ function App() {
       publicJwkObject: null
     });
     setMessage('');
+    setShowScrollIndicator(false);
   };
 
   const clearPemOutputs = () => {
@@ -463,6 +468,9 @@ function App() {
       });
 
       setMessage('Keys generated in your browser.');
+      
+      // Show scroll indicator to help user find the generated keys
+      setShowScrollIndicator(true);
     } catch (e) {
       console.error(e);
       setMessage('Error: ' + (e && e.message ? e.message : String(e)));
@@ -784,6 +792,11 @@ function App() {
         message={toast.message} 
         show={toast.show} 
         onClose={hideToast} 
+      />
+      
+      <ScrollIndicator 
+        show={showScrollIndicator && activeTab === 'generate' && (outputs.privateJwk || outputs.publicJwk)}
+        message="Scroll down to view generated keys"
       />
     </>
   );

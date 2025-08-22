@@ -52,16 +52,18 @@ function CertificateChainViewer({ certificates = [] }) {
   };
 
   const formatDate = (dateStr) => {
-    if (!dateStr) return 'Unknown';
+    if (!dateStr) return null;
     try {
       const date = new Date(dateStr);
+      // Check if date is valid
+      if (isNaN(date.getTime())) return null;
       return date.toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'short', 
         day: 'numeric' 
       });
     } catch {
-      return dateStr;
+      return null;
     }
   };
 
@@ -211,14 +213,20 @@ function CertificateChainViewer({ certificates = [] }) {
                   </div>
                 </div>
 
-                {/* Validity Period */}
-                <div>
-                  <strong style={{ color: 'var(--muted)' }}>Validity Period:</strong>
-                  <div style={{ marginLeft: '12px', marginTop: '4px' }}>
-                    <div>Not Before: {formatDate(cert.validity?.notBefore)}</div>
-                    <div>Not After: {formatDate(cert.validity?.notAfter)}</div>
+                {/* Validity Period - only show if we have valid dates */}
+                {(formatDate(cert.validity?.notBefore) || formatDate(cert.validity?.notAfter)) && (
+                  <div>
+                    <strong style={{ color: 'var(--muted)' }}>Validity Period:</strong>
+                    <div style={{ marginLeft: '12px', marginTop: '4px' }}>
+                      {formatDate(cert.validity?.notBefore) && (
+                        <div>Not Before: {formatDate(cert.validity?.notBefore)}</div>
+                      )}
+                      {formatDate(cert.validity?.notAfter) && (
+                        <div>Not After: {formatDate(cert.validity?.notAfter)}</div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Key Info */}
                 {cert.publicKey && (
