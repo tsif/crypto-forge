@@ -6,6 +6,7 @@ import JwtBuilder from './components/JwtBuilder';
 import KeyValidator from './components/KeyValidator';
 import JwksValidator from './components/JwksValidator';
 import CertificateValidator from './components/CertificateValidator';
+import CertificateGenerator from './components/CertificateGenerator';
 import SegmentedControl from './components/SegmentedControl';
 import ThemeToggle from './components/ThemeToggle';
 import FontSizeToggle from './components/FontSizeToggle';
@@ -728,6 +729,13 @@ function App() {
             setJwtVerifyState={setJwtVerifyState}
             showToast={showToast}
             setMessage={setMessage}
+          />
+        )}
+        {activeTab === 'certificate-generator' && (
+          <CertificateGenerator
+            availableKeys={getAvailableKeys()}
+            setMessage={setMessage}
+            showToast={showToast}
           />
         )}
 
