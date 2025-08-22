@@ -5,6 +5,7 @@ import PemConverter from './components/PemConverter';
 import JwtBuilder from './components/JwtBuilder';
 import KeyValidator from './components/KeyValidator';
 import JwksValidator from './components/JwksValidator';
+import SmartKeyValidator from './components/SmartKeyValidator';
 import CertificateValidator from './components/CertificateValidator';
 import CertificateGenerator from './components/CertificateGenerator';
 import SegmentedControl from './components/SegmentedControl';
@@ -739,21 +740,12 @@ function App() {
           />
         )}
 
-        {activeTab === 'validate-jwk' && (
-          <KeyValidator 
-            keyInput={keyValidatorState.keyInput}
-            setKeyInput={(input) => setKeyValidatorState(prev => ({ ...prev, keyInput: input }))}
-            validationResult={keyValidatorState.validationResult}
-            setValidationResult={(result) => setKeyValidatorState(prev => ({ ...prev, validationResult: result }))}
-          />
-        )}
-
-        {activeTab === 'validate-jwks' && (
-          <JwksValidator 
-            jwksInput={jwksValidatorState.jwksInput}
-            setJwksInput={(input) => setJwksValidatorState(prev => ({ ...prev, jwksInput: input }))}
-            validationResult={jwksValidatorState.validationResult}
-            setValidationResult={(result) => setJwksValidatorState(prev => ({ ...prev, validationResult: result }))}
+        {activeTab === 'validate-keys' && (
+          <SmartKeyValidator 
+            keyValidatorState={keyValidatorState}
+            setKeyValidatorState={setKeyValidatorState}
+            jwksValidatorState={jwksValidatorState}
+            setJwksValidatorState={setJwksValidatorState}
           />
         )}
 

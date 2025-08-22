@@ -6,8 +6,7 @@ function SegmentedControl({ activeTab, onTabChange }) {
     { id: 'jwt-verify', label: 'Verify JWT' },
     { id: 'pem-convert', label: 'PEM → JWK / JWKS' },
     { id: 'certificate-generator', label: 'Generate Certificate' },
-    { id: 'validate-jwk', label: 'Validate JWK' },
-    { id: 'validate-jwks', label: 'Validate JWKS' },
+    { id: 'validate-keys', label: 'Validate Keys' },
     { id: 'validate-cert', label: 'Validate Certificate' }
   ];
 

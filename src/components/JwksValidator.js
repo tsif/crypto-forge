@@ -335,10 +335,10 @@ function JwksValidator({ jwksInput = '', setJwksInput, validationResult = null, 
   return (
     <>
       <section className="card" style={{ marginTop: '12px' }}>
-        <h2>Validate JWKS</h2>
+        <h2>Validate Keys</h2>
         <p className="muted">
-          Paste a <strong>JWKS (JSON Web Key Set)</strong> to validate it. 
-          Validates the entire key set structure, checks each key, and identifies potential security issues.
+          Paste a <strong>JWK (JSON Web Key)</strong> or <strong>JWKS (JSON Web Key Set)</strong> to validate it. 
+          The validator will automatically detect the format and check for security issues.
         </p>
         <div className="actions" style={{ marginTop: '8px' }}>
           <button 
@@ -347,7 +347,7 @@ function JwksValidator({ jwksInput = '', setJwksInput, validationResult = null, 
             disabled={isValidating || !input.trim()}
           >
             {isValidating && <Spinner size={16} />}
-            Validate JWKS
+            Validate Keys
           </button>
           <button 
             className="btn" 

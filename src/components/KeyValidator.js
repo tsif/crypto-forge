@@ -242,10 +242,10 @@ function KeyValidator({ keyInput = '', setKeyInput, validationResult = null, set
   return (
     <>
       <section className="card" style={{ marginTop: '12px' }}>
-        <h2>Validate JWK</h2>
+        <h2>Validate Keys</h2>
         <p className="muted">
-          Paste a <strong>JWK (JSON Web Key)</strong> to validate it. 
-          Works for both RSA and EC keys. The validator will check the key's validity and display its properties.
+          Paste a <strong>JWK (JSON Web Key)</strong> or <strong>JWKS (JSON Web Key Set)</strong> to validate it. 
+          Works for RSA and EC keys. The validator will automatically detect the format and check validity.
         </p>
         <div className="actions" style={{ marginTop: '8px' }}>
           <button 
@@ -254,7 +254,7 @@ function KeyValidator({ keyInput = '', setKeyInput, validationResult = null, set
             disabled={isValidating || !input.trim()}
           >
             {isValidating && <Spinner size={16} />}
-            Validate JWK
+            Validate Keys
           </button>
           <button 
             className="btn" 
