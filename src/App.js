@@ -50,6 +50,12 @@ function App() {
     return savedFontSize || 'default';
   });
 
+  // Mobile detection state
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  
+  // Footer expand/collapse state (desktop only)
+  const [footerExpanded, setFooterExpanded] = useState(false);
+
   // Apply theme on mount and when it changes
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -76,6 +82,16 @@ function App() {
       mediaQuery.addEventListener('change', handleChange);
       return () => mediaQuery.removeEventListener('change', handleChange);
     }
+  }, []);
+
+  // Listen for window resize to update mobile state
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const toggleTheme = () => {
@@ -611,8 +627,10 @@ function App() {
           <div className="nav-content">
             <h1>CryptoForge — Your Complete Key & Certificate Toolkit</h1>
             <p className="nav-subtitle">
-              Generate keypairs, convert between JWK/PEM formats, verify JWTs, validate keys, and decode X.509 certificates. 
-              All cryptographic operations run securely in your browser.
+              {isMobile 
+                ? "Generate keypairs, build JWTs, convert keys, validate certificates. All operations run securely in your browser."
+                : "Generate keypairs, build & verify JWTs with custom headers, convert between JWK/PEM formats, validate keys & certificate chains, and generate X.509 certificates. All cryptographic operations run securely in your browser with Web Crypto API."
+              }
             </p>
           </div>
           <div className="nav-actions">
@@ -772,17 +790,37 @@ function App() {
       
       <footer className="security-footer desktop-only">
         <div className="security-content">
-          <h3>Notes & safety</h3>
-          <ul className="security-list">
+          <div className="footer-header" onClick={() => setFooterExpanded(!footerExpanded)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Notes & safety
+              <span style={{ 
+                fontSize: '14px', 
+                color: 'var(--muted)', 
+                transform: footerExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease'
+              }}>
+                ▼
+              </span>
+            </h3>
+          </div>
+          
+          <ul className="security-list" style={{
+            maxHeight: footerExpanded ? '500px' : '60px',
+            overflow: 'hidden',
+            transition: 'max-height 0.3s ease',
+            marginTop: '8px'
+          }}>
             <li>Keys are generated <em>locally</em> in your browser using the Web Crypto API. No data is sent anywhere by this page.</li>
             <li>Public PEMs are <code>SubjectPublicKeyInfo</code> (<code>BEGIN PUBLIC KEY</code>). Private PEMs are PKCS#8 (<code>BEGIN PRIVATE KEY</code>).</li>
             <li><strong>Never</strong> publish a JWKS that contains private keys. The "JWK Set (Keypair)" is for local testing only.</li>
-            <li>Certificate validation parses X.509 structure and displays properties. <strong>Always verify</strong> certificate chain and CRL status separately.</li>
-            <li>JWT verification supports RSA and EC algorithms. Public keys are auto-extracted from <code>x5c</code> certificate chains when present in JWT headers.</li>
-            <li>Imported PEMs and certificates are auto-detected (RSA or EC). For RSA, RSASSA-PKCS1-v1_5, RSA-PSS, or RSA-OAEP are accepted. For EC, P‑256/P‑384/P‑521 are supported.</li>
-            <li>The <code>alg</code> on imported keys is inferred (e.g., RS256 for RSA; ES256/384/512 for EC) and may not match the original usage.</li>
+            <li>JWT Builder creates & verifies tokens with custom headers (<code>kid</code>, <code>x5t</code>, <code>x5t#S256</code>, <code>x5u</code>). Creation is desktop-only for better UX.</li>
+            <li>JWT verification supports RSA/EC algorithms (RS256-512, ES256-512, PS256-512). Keys auto-extract from <code>x5c</code> certificate chains or can be fetched from URLs.</li>
+            <li>Certificate chain validation checks ordering, expiration, CA constraints, and signature algorithms. <strong>Always verify</strong> CRL/OCSP status separately.</li>
+            <li>X.509 certificate generation creates self-signed certificates with customizable validity, extensions, and key usage constraints.</li>
+            <li>The <code>alg</code> on imported keys is auto-detected (RS256/ES256/etc.) based on key type and curve, and may not match original usage.</li>
           </ul>
-          <div className="security-footer-copyright">
+          
+          <div className="security-footer-copyright" style={{ marginTop: '12px' }}>
             © {new Date().getFullYear()} • Built for developers. Use at your own risk.
           </div>
         </div>
