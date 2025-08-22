@@ -38,8 +38,27 @@ function JwtBuilder({
     x5cExtracted: null
   });
 
-  const state = setJwtBuilderState ? jwtBuilderState : localState;
-  const setState = setJwtBuilderState || setLocalState;
+  // Use jwtVerifyState for verify tab, localState for create tab
+  const state = localState.activeSubTab === 'verify' 
+    ? { ...localState, ...jwtVerifyState }
+    : localState;
+  
+  const updateState = (updates) => {
+    setLocalState(prev => ({ ...prev, ...updates }));
+    
+    // If we're in verify mode, also update the persistent verify state
+    if (state.activeSubTab === 'verify' && setJwtVerifyState) {
+      const verifyUpdates = {};
+      if ('jwtToVerify' in updates) verifyUpdates.jwtToVerify = updates.jwtToVerify;
+      if ('verificationKey' in updates) verifyUpdates.verificationKey = updates.verificationKey;
+      if ('verificationResult' in updates) verifyUpdates.verificationResult = updates.verificationResult;
+      if ('x5cExtracted' in updates) verifyUpdates.x5cExtracted = updates.x5cExtracted;
+      
+      if (Object.keys(verifyUpdates).length > 0) {
+        setJwtVerifyState(prev => ({ ...prev, ...verifyUpdates }));
+      }
+    }
+  };
 
   const [busy, setBusy] = useState(false);
   const [fetchingKey, setFetchingKey] = useState(false);
@@ -132,9 +151,6 @@ function JwtBuilder({
     return keys;
   };
 
-  const updateState = (updates) => {
-    setState(prev => ({ ...prev, ...updates }));
-  };
 
   const getSelectedKey = () => {
     if (state.selectedKeyId === 'custom') {
@@ -762,7 +778,7 @@ function JwtBuilder({
             </div>
 
             {state.selectedKeyId === 'custom' && (
-              <div className="field">
+              <div className="field" style={{ paddingBottom: '8px' }}>
                 <label>Custom Key (JWK JSON)</label>
                 <textarea
                   value={state.customKey}
