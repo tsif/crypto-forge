@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Spinner from './Spinner';
 import OutputCard from './OutputCard';
 import JwtExpirationCalculator from './JwtExpirationCalculator';
@@ -43,6 +43,81 @@ function JwtBuilder({
   const setState = verifyOnly ? (setJwtVerifyState || setLocalState) : (setJwtBuilderState || setLocalState);
 
   const [busy, setBusy] = useState(false);
+  const [fetchingKey, setFetchingKey] = useState(false);
+  const [keyFetchError, setKeyFetchError] = useState(null);
+  const timeoutRef = useRef(null);
+
+  // Function to check if input is a URL ending with .json
+  const isJsonUrl = (input) => {
+    try {
+      const url = new URL(input.trim());
+      return url.pathname.endsWith('.json');
+    } catch {
+      return false;
+    }
+  };
+
+  // Function to fetch key from URL
+  const fetchKeyFromUrl = async (url) => {
+    setFetchingKey(true);
+    setKeyFetchError(null);
+    
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Check if it's a JWKS (has keys array) or a single JWK
+      if (data.keys && Array.isArray(data.keys) && data.keys.length > 0) {
+        // It's a JWKS, use the first key
+        updateState({ 
+          verificationKey: JSON.stringify(data.keys[0], null, 2),
+          x5cExtracted: null 
+        });
+        showToast(`Fetched first key from JWKS (${data.keys.length} keys available)`);
+      } else if (data.kty) {
+        // It's a single JWK
+        updateState({ 
+          verificationKey: JSON.stringify(data, null, 2),
+          x5cExtracted: null 
+        });
+        showToast('Key fetched successfully from URL');
+      } else {
+        throw new Error('Invalid key format: Expected JWK or JWKS');
+      }
+    } catch (error) {
+      setKeyFetchError(`Failed to fetch key: ${error.message}`);
+      showToast(`Error fetching key: ${error.message}`);
+    } finally {
+      setFetchingKey(false);
+    }
+  };
+
+  // Enhanced onChange handler for verification key
+  const handleVerificationKeyChange = async (e) => {
+    const value = e.target.value;
+    
+    // Update the state immediately
+    updateState({ verificationKey: value, x5cExtracted: null });
+    setKeyFetchError(null);
+    
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Check if the input looks like a JSON URL
+    if (isJsonUrl(value)) {
+      // Wait a bit in case user is still typing
+      timeoutRef.current = setTimeout(async () => {
+        await fetchKeyFromUrl(value);
+        timeoutRef.current = null;
+      }, 1000); // 1 second delay
+    }
+  };
 
   // Get available keys from generate and PEM conversion tabs
   const getAvailableKeys = () => {
@@ -870,7 +945,17 @@ function JwtBuilder({
 
                   <div style={{ ...fieldStyle, marginTop: '16px' }}>
                     <div style={labelContainerStyle}>
-                      <label style={{ margin: 0, textAlign: 'left' }}>Verification Key (Public Key JWK)</label>
+                      <label style={{ margin: 0, textAlign: 'left' }}>
+                        Verification Key (Public Key JWK or URL)
+                        <span style={{ 
+                          fontSize: '11px', 
+                          color: 'var(--muted)', 
+                          fontWeight: 'normal',
+                          marginLeft: '8px'
+                        }}>
+                          Paste JWK or URL ending with .json
+                        </span>
+                      </label>
                       {state.x5cExtracted && (
                         <span style={{ color: '#10b981', fontSize: '12px', marginLeft: '8px' }}>
                           ✓ Auto-extracted from x5c
@@ -879,11 +964,48 @@ function JwtBuilder({
                     </div>
                     <textarea
                       value={state.verificationKey}
-                      onChange={(e) => updateState({ verificationKey: e.target.value, x5cExtracted: null })}
-                      placeholder='{"kty":"RSA","n":"...","e":"AQAB"}'
+                      onChange={handleVerificationKeyChange}
+                      placeholder='{"kty":"RSA","n":"...","e":"AQAB"} or https://example.com/keys.json'
                       style={{...textareaStyle}}
                       rows="2"
                     />
+                    
+                    {/* Loading indicator */}
+                    {fetchingKey && (
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: '#f59e0b', 
+                        marginTop: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <Spinner size={12} />
+                        <span>Fetching key from URL...</span>
+                      </div>
+                    )}
+                    
+                    {/* Error indicator */}
+                    {keyFetchError && !fetchingKey && (
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: '#ef4444', 
+                        marginTop: '4px'
+                      }}>
+                        ⚠ {keyFetchError}
+                      </div>
+                    )}
+                    
+                    {/* URL detected indicator */}
+                    {!fetchingKey && !keyFetchError && isJsonUrl(state.verificationKey) && (
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: '#10b981', 
+                        marginTop: '4px'
+                      }}>
+                        🔗 URL detected - key will be fetched automatically
+                      </div>
+                    )}
                   </div>
                 </>
               );
