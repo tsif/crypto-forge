@@ -724,7 +724,6 @@ function App() {
 
         {activeTab === 'jwt-verify' && (
           <JwtBuilder 
-            verifyOnly={true}
             availableKeys={getAvailableKeys()}
             jwtVerifyState={jwtVerifyState}
             setJwtVerifyState={setJwtVerifyState}

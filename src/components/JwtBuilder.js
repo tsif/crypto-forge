@@ -6,7 +6,6 @@ import ExplainButton from './ExplainButton';
 import CommonMistakesWarning from './CommonMistakesWarning';
 
 function JwtBuilder({ 
-  verifyOnly = false,
   availableKeys = [], 
   jwtBuilderState = {}, 
   setJwtBuilderState,
@@ -17,7 +16,7 @@ function JwtBuilder({
 }) {
   // Use props if provided, otherwise fall back to local state
   const [localState, setLocalState] = useState({
-    activeSubTab: 'verify',
+    activeSubTab: 'create',
     // Create JWT state
     selectedKeyId: '',
     customKey: '',
@@ -39,8 +38,8 @@ function JwtBuilder({
     x5cExtracted: null
   });
 
-  const state = verifyOnly ? (setJwtVerifyState ? jwtVerifyState : localState) : (setJwtBuilderState ? jwtBuilderState : localState);
-  const setState = verifyOnly ? (setJwtVerifyState || setLocalState) : (setJwtBuilderState || setLocalState);
+  const state = setJwtBuilderState ? jwtBuilderState : localState;
+  const setState = setJwtBuilderState || setLocalState;
 
   const [busy, setBusy] = useState(false);
   const [fetchingKey, setFetchingKey] = useState(false);
@@ -185,11 +184,18 @@ function JwtBuilder({
         throw new Error('Unable to determine algorithm for selected key');
       }
 
-      // Build header
+      // Build header with algorithm
       const header = {
         alg: algorithm,
         ...state.headerClaims
       };
+      
+      // Remove empty header values
+      Object.keys(header).forEach(key => {
+        if (header[key] === '' || header[key] === undefined || header[key] === null) {
+          delete header[key];
+        }
+      });
 
       // Build payload
       let customClaimsObj = {};
@@ -205,6 +211,13 @@ function JwtBuilder({
         ...state.payloadClaims,
         ...customClaimsObj
       };
+      
+      // Remove empty payload values
+      Object.keys(payload).forEach(key => {
+        if (payload[key] === '' || payload[key] === undefined || payload[key] === null) {
+          delete payload[key];
+        }
+      });
 
       // Create JWT
       const jwt = await createJwtToken(header, payload, selectedKey, algorithm);
@@ -703,42 +716,37 @@ function JwtBuilder({
     <>
       <section className="card" style={{ marginTop: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <h2 style={{ margin: 0 }}>{verifyOnly ? 'JWT Verifier' : 'JWT Builder'}</h2>
+          <h2 style={{ margin: 0 }}>JWT Builder</h2>
           <ExplainButton concept="jwt" />
         </div>
         <p className="muted">
-          {verifyOnly 
-            ? 'Verify JSON Web Tokens using your generated keys or custom keys. Supports RSA and EC algorithms with proper signature verification.'
-            : 'Create and verify JSON Web Tokens using your generated keys or custom keys. Supports RSA and EC algorithms with proper signature verification.'
-          }
+          Create and verify JSON Web Tokens using your generated keys or custom keys. Supports RSA and EC algorithms with proper signature verification.
         </p>
         
-        {/* Sub-tab navigation - only show if not verify-only */}
-        {!verifyOnly && (
-          <div className="segmented-control" style={{ marginTop: '16px' }}>
-            <button
-              className={`segment ${state.activeSubTab === 'verify' ? 'active' : ''}`}
-              onClick={() => updateState({ activeSubTab: 'verify' })}
-            >
-              Verify JWT
-            </button>
-            <button
-              className={`segment ${state.activeSubTab === 'create' ? 'active' : ''}`}
-              onClick={() => updateState({ activeSubTab: 'create' })}
-            >
-              Create JWT
-            </button>
-          </div>
-        )}
+        {/* Sub-tab navigation */}
+        <div className="segmented-control" style={{ marginTop: '16px' }}>
+          <button
+            className={`segment ${state.activeSubTab === 'create' ? 'active' : ''}`}
+            onClick={() => updateState({ activeSubTab: 'create' })}
+          >
+            Create JWT
+          </button>
+          <button
+            className={`segment ${state.activeSubTab === 'verify' ? 'active' : ''}`}
+            onClick={() => updateState({ activeSubTab: 'verify' })}
+          >
+            Verify JWT
+          </button>
+        </div>
       </section>
 
-      {!verifyOnly && state.activeSubTab === 'create' && (
+      {state.activeSubTab === 'create' && (
         <>
           <section className="card" style={{ marginTop: '12px' }}>
             <h3>Create JWT</h3>
             
             {/* Key Selection */}
-            <div className="field">
+            <div className="field" style={{ paddingBottom: '16px' }}>
               <label>Signing Key</label>
               <select 
                 value={state.selectedKeyId} 
@@ -760,7 +768,6 @@ function JwtBuilder({
                   value={state.customKey}
                   onChange={(e) => updateState({ customKey: e.target.value })}
                   placeholder='{"kty":"RSA","n":"...","e":"AQAB","d":"..."}'
-                  style={{ minHeight: '100px' }}
                 />
               </div>
             )}
@@ -768,85 +775,157 @@ function JwtBuilder({
             {/* Header Claims */}
             <div className="field">
               <label>Header Claims</label>
-              <div className="row">
-                <input
-                  type="text"
-                  placeholder="typ"
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                <textarea
                   value={state.headerClaims.typ || ''}
                   onChange={(e) => updateState({ 
                     headerClaims: { ...state.headerClaims, typ: e.target.value }
                   })}
+                  placeholder="typ (token type)"
+                  style={{ 
+                    minHeight: '40px',
+                    height: '40px',
+                    resize: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    marginLeft: '0',
+                    paddingLeft: '12px'
+                  }}
+                />
+                <textarea
+                  value={state.headerClaims.kid || ''}
+                  onChange={(e) => updateState({ 
+                    headerClaims: { ...state.headerClaims, kid: e.target.value }
+                  })}
+                  placeholder="kid (key ID)"
+                  style={{ 
+                    minHeight: '40px',
+                    height: '40px',
+                    resize: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    marginLeft: '0',
+                    paddingLeft: '12px'
+                  }}
                 />
               </div>
             </div>
 
             {/* Standard Payload Claims */}
-            <div className="field">
+            <div className="field" style={{ paddingTop: '8px' }}>
               <label>Standard Claims</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
-                <input
-                  type="text"
-                  placeholder="iss (issuer)"
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                <textarea
                   value={state.payloadClaims.iss || ''}
                   onChange={(e) => updateState({ 
                     payloadClaims: { ...state.payloadClaims, iss: e.target.value }
                   })}
+                  placeholder="iss (issuer)"
+                  style={{ 
+                    minHeight: '40px',
+                    height: '40px',
+                    resize: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    marginLeft: '0',
+                    paddingLeft: '12px'
+                  }}
                 />
-                <input
-                  type="text"
-                  placeholder="aud (audience)"
+                <textarea
                   value={state.payloadClaims.aud || ''}
                   onChange={(e) => updateState({ 
                     payloadClaims: { ...state.payloadClaims, aud: e.target.value }
                   })}
+                  placeholder="aud (audience)"
+                  style={{ 
+                    minHeight: '40px',
+                    height: '40px',
+                    resize: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    marginLeft: '0',
+                    paddingLeft: '12px'
+                  }}
                 />
-                <input
-                  type="text"
-                  placeholder="sub (subject)"
+                <textarea
                   value={state.payloadClaims.sub || ''}
                   onChange={(e) => updateState({ 
                     payloadClaims: { ...state.payloadClaims, sub: e.target.value }
                   })}
+                  placeholder="sub (subject)"
+                  style={{ 
+                    minHeight: '40px',
+                    height: '40px',
+                    resize: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    marginLeft: '0',
+                    paddingLeft: '12px'
+                  }}
                 />
-                <input
-                  type="number"
-                  placeholder="exp (expires)"
+                <textarea
                   value={state.payloadClaims.exp || ''}
                   onChange={(e) => updateState({ 
                     payloadClaims: { ...state.payloadClaims, exp: parseInt(e.target.value) || 0 }
                   })}
+                  placeholder="exp (expires)"
+                  style={{ 
+                    minHeight: '40px',
+                    height: '40px',
+                    resize: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    marginLeft: '0',
+                    paddingLeft: '12px'
+                  }}
                 />
-                <input
-                  type="number"
-                  placeholder="iat (issued at)"
+                <textarea
                   value={state.payloadClaims.iat || ''}
                   onChange={(e) => updateState({ 
                     payloadClaims: { ...state.payloadClaims, iat: parseInt(e.target.value) || 0 }
                   })}
+                  placeholder="iat (issued at)"
+                  style={{ 
+                    minHeight: '40px',
+                    height: '40px',
+                    resize: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    marginLeft: '0',
+                    paddingLeft: '12px'
+                  }}
                 />
-                <input
-                  type="number"
-                  placeholder="nbf (not before)"
+                <textarea
                   value={state.payloadClaims.nbf || ''}
                   onChange={(e) => updateState({ 
                     payloadClaims: { ...state.payloadClaims, nbf: parseInt(e.target.value) || 0 }
                   })}
+                  placeholder="nbf (not before)"
+                  style={{ 
+                    minHeight: '40px',
+                    height: '40px',
+                    resize: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    marginLeft: '0',
+                    paddingLeft: '12px'
+                  }}
                 />
               </div>
             </div>
 
             {/* Custom Claims */}
-            <div className="field">
+            <div className="field" style={{ paddingTop: '8px' }} >
               <label>Custom Claims (JSON)</label>
               <textarea
                 value={state.customClaims}
                 onChange={(e) => updateState({ customClaims: e.target.value })}
                 placeholder='{"custom_claim": "value", "role": "admin"}'
-                style={{ minHeight: '80px' }}
+                style={{ minHeight: '80px', resize: 'vertical' }}
               />
             </div>
 
-            <div className="actions">
+            <div className="actions" style={{ paddingTop: '16px' }}>
               <button 
                 className="btn primary" 
                 onClick={createJwt}
@@ -875,7 +954,7 @@ function JwtBuilder({
         </>
       )}
 
-      {(verifyOnly || state.activeSubTab === 'verify') && (
+      {state.activeSubTab === 'verify' && (
         <>
           <section className="card" style={{ marginTop: '12px' }}>
             <h3>Verify JWT</h3>

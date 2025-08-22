@@ -15,7 +15,7 @@ function SegmentedControl({ activeTab, onTabChange }) {
 
   const tabs = [
     { id: 'generate', label: 'Generate Keys', mobileLabel: 'Generate' },
-    { id: 'jwt-verify', label: 'Verify JWT', mobileLabel: 'Verify JWT' },
+    { id: 'jwt-verify', label: 'JWT Builder', mobileLabel: 'JWT' },
     { id: 'pem-convert', label: 'PEM → JWK / JWKS', mobileLabel: 'Convert' },
     { id: 'certificate-generator', label: 'Generate Certificate', mobileLabel: 'Gen Cert' },
     { id: 'validate-keys', label: 'Validate Keys', mobileLabel: 'Val Keys' },
