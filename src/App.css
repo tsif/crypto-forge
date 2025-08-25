@@ -453,6 +453,20 @@ code {
   flex-shrink: 0;
 }
 
+.source-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: calc(var(--base-font-size) - 1px);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.source-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
 /* Responsive visibility classes */
 .desktop-only {
   display: block;

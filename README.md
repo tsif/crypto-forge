@@ -2,7 +2,7 @@
 
 A comprehensive web-based cryptographic toolkit for generating, converting, validating, and analyzing keys and certificates. All operations run securely in your browser using the Web Crypto API.
 
-## 🚀 Features
+## Features
 
 ### Key Generation
 - **RSA Keys**: 2048, 3072, 4096-bit support with SHA-256/384/512 hashing
@@ -30,7 +30,7 @@ A comprehensive web-based cryptographic toolkit for generating, converting, vali
 - **Proper ASN.1 Parsing**: Accurate X.509 certificate field extraction
 - **Private Key Detection**: Warns about private keys in public JWKS
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **Frontend**: React 18 with Hooks
 - **Cryptography**: Web Crypto API (browser-native)
@@ -38,7 +38,7 @@ A comprehensive web-based cryptographic toolkit for generating, converting, vali
 - **Styling**: CSS Custom Properties with light/dark theme support
 - **Build System**: Create React App
 
-## 📦 Installation
+## Installation
 
 ### Prerequisites
 - Node.js 16+ 
@@ -62,7 +62,7 @@ npm run build
 
 The application will be available at `http://localhost:3000`.
 
-## 🎯 Usage
+## Usage
 
 ### Generate Keys
 1. Select **Generate Keys** tab
@@ -87,7 +87,7 @@ The application will be available at `http://localhost:3000`.
 2. Paste single certificate or certificate chain
 3. View detailed certificate analysis and chain validation
 
-## 🔒 Security Features
+## Security Features
 
 ### Key Strength Analysis
 Based on **NIST SP 800-57 Part 1 Rev 5**:
@@ -107,7 +107,7 @@ Based on **NIST SP 800-57 Part 1 Rev 5**:
 - **Algorithm Strength**: Identifies weak signature algorithms
 - **Expiration Checking**: Warns about expired or not-yet-valid certificates
 
-## 🏗️ Architecture
+## Architecture
 
 ### Components
 - **`Controls`**: Key generation parameters and controls
@@ -124,7 +124,7 @@ Based on **NIST SP 800-57 Part 1 Rev 5**:
 - **`asn1Parser.js`**: ASN.1/DER parsing for X.509 certificates
 - **`certChainValidator.js`**: Certificate chain validation logic
 
-## 🔧 API Reference
+## API Reference
 
 ### Key Generation
 ```javascript
@@ -151,7 +151,7 @@ const { der, label } = pemToDer(pemString);
 const jwk = await crypto.subtle.exportKey('jwk', importedKey);
 ```
 
-## 🎨 Customization
+## Customization
 
 ### Theme Support
 The application supports automatic light/dark theme switching based on system preferences:
@@ -178,7 +178,7 @@ To add support for new algorithms:
 3. Update the `analyzeKeyStrength()` function
 4. Add UI controls in the `Controls` component
 
-## 📝 Certificate Chain Example
+## Certificate Chain Example
 
 ```
 -----BEGIN CERTIFICATE-----
@@ -199,14 +199,14 @@ The validator will:
 - Validate certificate validity periods
 - Identify weak signature algorithms
 
-## ⚠️ Security Notes
+## Security Notes
 
 - **Local Processing**: All operations run in your browser - no data is sent to servers
 - **Private Key Handling**: Private keys should never be shared in JWKS documents
 - **Certificate Verification**: Always verify certificate chains and CRL status separately
 - **Algorithm Recommendations**: Follow NIST guidelines for algorithm selection
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -214,11 +214,11 @@ The validator will:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **NIST SP 800-57**: Key management recommendations
 - **RFC 7517**: JSON Web Key (JWK) specification  
@@ -226,7 +226,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **ITU-T X.690**: ASN.1 encoding rules
 - **Web Crypto API**: Browser-native cryptographic operations
 
-## 📞 Support
+## Support
 
 For support, questions, or feature requests:
 - Create an issue on GitHub

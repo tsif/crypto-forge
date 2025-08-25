@@ -630,6 +630,14 @@ function App() {
                 : "Generate keypairs, build & verify JWTs with custom headers, convert between JWK/PEM formats, validate keys & certificate chains, and generate X.509 certificates. All cryptographic operations run securely in your browser with Web Crypto API."
               }
             </p>
+            <a 
+              href="https://github.com/tsif/crypto-forge" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="source-link"
+            >
+              View source on GitHub →
+            </a>
           </div>
           <div className="nav-actions">
             <FontSizeToggle fontSize={fontSize} toggleFontSize={toggleFontSize} />
