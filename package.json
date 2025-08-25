@@ -1,6 +1,7 @@
 {
   "name": "key-wizard",
   "version": "1.0.0",
+  "homepage": "https://dtsiflit.github.io/key-wizard",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",
