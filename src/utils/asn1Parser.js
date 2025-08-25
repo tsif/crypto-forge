@@ -215,7 +215,7 @@ export function parseInteger(content) {
 
 export function parseBitString(content) {
   if (content.length === 0) return new Uint8Array();
-  const unusedBits = content[0];
+  // const unusedBits = content[0]; // Number of unused bits in last octet - not needed for our use
   return content.slice(1);
 }
 

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import OutputCard from './OutputCard';
 import Spinner from './Spinner';
-import ExplainButton from './ExplainButton';
 
 function CertificateGenerator({ availableKeys, setMessage, showToast }) {
   const [busy, setBusy] = useState(false);

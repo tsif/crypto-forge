@@ -76,7 +76,7 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
       
       const tbsCertificate = certChildren[0]; // TBSCertificate
       const signatureAlgorithm = certChildren[1]; // AlgorithmIdentifier
-      const signatureValue = certChildren[2]; // BIT STRING
+      // const signatureValue = certChildren[2]; // BIT STRING - unused but part of cert structure
       
       // Parse TBSCertificate
       const tbsParser = new ASN1Parser(tbsCertificate.content);
@@ -192,7 +192,7 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
                 let valueObj;
                 
                 if (extChildren.length === 3) {
-                  critical = extChildren[1].tag.tagNumber === 1; // BOOLEAN
+                  // critical = extChildren[1].tag.tagNumber === 1; // BOOLEAN - unused but parsed
                   valueObj = extChildren[2];
                 } else {
                   valueObj = extChildren[1];
@@ -202,6 +202,9 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
                   const oid = parseOid(oidObj.content);
                   
                   switch (oid) {
+                    default:
+                      // Handle unknown extensions
+                      break;
                     case 'keyUsage':
                       // Parse key usage bit string
                       const kuParser = new ASN1Parser(valueObj.content);

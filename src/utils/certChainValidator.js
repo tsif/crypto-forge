@@ -1,5 +1,5 @@
 // Basic certificate chain validation utilities
-import { ASN1Parser, parseOid, parseTime, parseString, parseInteger, parseBitString, parseDN } from './asn1Parser';
+import { ASN1Parser, parseOid, parseTime, parseInteger, parseDN } from './asn1Parser';
 
 export class CertificateChainValidator {
   constructor() {
@@ -153,7 +153,8 @@ export class CertificateChainValidator {
       remaining.splice(remaining.indexOf(current), 1);
 
       // Find the issuer of the current certificate
-      current = remaining.find(cert => cert.subject === current.issuer);
+      const currentIssuer = current.issuer;
+      current = remaining.find(cert => cert.subject === currentIssuer);
     }
 
     return ordered;
