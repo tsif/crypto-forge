@@ -188,7 +188,7 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
               
               if (extChildren.length >= 2) {
                 const oidObj = extChildren[0];
-                let critical = false;
+                // let critical = false; // Extension criticality flag - unused but part of X.509 structure
                 let valueObj;
                 
                 if (extChildren.length === 3) {
