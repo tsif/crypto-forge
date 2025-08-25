@@ -2,8 +2,6 @@
 
 A comprehensive web-based cryptographic toolkit for generating, converting, validating, and analyzing keys and certificates. All operations run securely in your browser using the Web Crypto API.
 
-![CryptoForge Screenshot](https://via.placeholder.com/800x400/2a2a2a/ffffff?text=CryptoForge+Screenshot)
-
 ## 🚀 Features
 
 ### Key Generation
