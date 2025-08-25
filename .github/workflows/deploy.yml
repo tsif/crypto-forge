@@ -1,14 +1,16 @@
 name: Deploy to GitHub Pages
 
 on:
+  push:
+    branches: [main]
   pull_request:
     types: [closed]
     branches: [main]
 
 jobs:
   deploy:
-    # Only run if the PR was merged (not just closed)
-    if: github.event.pull_request.merged == true
+    # Run on push to main OR when PR is merged
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
     
     runs-on: ubuntu-latest
     
