@@ -76,7 +76,11 @@ function JwtBuilder({
   const [busy, setBusy] = useState(false);
   const [fetchingKey, setFetchingKey] = useState(false);
   const [keyFetchError, setKeyFetchError] = useState(null);
+  const [message, setMessageState] = useState('');
   const timeoutRef = useRef(null);
+  
+  // Use prop setMessage if provided, otherwise use local state
+  const setMessageHandler = setMessage || setMessageState;
 
   // Function to check if input is a URL ending with .json
   const isJsonUrl = (input) => {
@@ -200,10 +204,11 @@ function JwtBuilder({
 
   const createJwt = async () => {
     setBusy(true);
-    setMessage('');
+    setMessageHandler('');
 
     try {
       const selectedKey = getSelectedKey();
+
       if (!selectedKey) {
         throw new Error('Please select or provide a valid key');
       }
@@ -252,9 +257,9 @@ function JwtBuilder({
       const jwt = await createJwtToken(header, payload, selectedKey, algorithm);
       
       updateState({ generatedJwt: jwt });
-      setMessage('JWT created successfully');
+      setMessageHandler('JWT created successfully');
     } catch (error) {
-      setMessage(`Error: ${error.message}`);
+      setMessageHandler(`Error: ${error.message}`);
     } finally {
       setBusy(false);
     }
@@ -308,7 +313,7 @@ function JwtBuilder({
 
   const decodeJwt = async () => {
     setBusy(true);
-    setMessage('');
+    setMessageHandler('');
 
     try {
       if (!state.jwtToVerify.trim()) {
@@ -395,7 +400,7 @@ function JwtBuilder({
 
   const verifyJwt = async () => {
     setBusy(true);
-    setMessage('');
+    setMessageHandler('');
 
     try {
       if (!state.jwtToVerify.trim()) {
@@ -452,7 +457,7 @@ function JwtBuilder({
       };
 
       updateState({ verificationResult: result });
-      setMessage(result.valid ? 'JWT verified successfully' : 'JWT verification failed');
+      setMessageHandler(result.valid ? 'JWT verified successfully' : 'JWT verification failed');
     } catch (error) {
       updateState({ 
         verificationResult: { 
@@ -461,7 +466,7 @@ function JwtBuilder({
           error: error.message 
         } 
       });
-      setMessage(`Error: ${error.message}`);
+      setMessageHandler(`Error: ${error.message}`);
     } finally {
       setBusy(false);
     }
@@ -980,6 +985,7 @@ function JwtBuilder({
               <button className="btn" onClick={clearAll}>
                 Clear All
               </button>
+              {message && <span className="muted" style={{marginLeft: '12px'}}>{message}</span>}
             </div>
           </section>
 
@@ -989,7 +995,7 @@ function JwtBuilder({
                 title="Generated JWT"
                 value={state.generatedJwt}
                 filename="token.jwt"
-                setMessage={setMessage}
+                setMessage={setMessageHandler}
                 showToast={showToast}
               />
             </section>

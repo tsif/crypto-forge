@@ -641,7 +641,7 @@ function App() {
       <nav className="navbar">
         <div className="nav-container">
           <div className="nav-content">
-            <h1>CryptoForge — Your Complete Key & Certificate Toolkit</h1>
+            <h1>CryptoForge — Your Key & Certificate Toolkit</h1>
             <p className="nav-subtitle">
               {isMobile 
                 ? "Generate keypairs, build JWTs, convert keys, validate certificates. All operations run securely in your browser."

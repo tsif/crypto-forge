@@ -167,7 +167,7 @@ function ExplainButton({ concept, title, compact = false, position = 'left' }) {
         onMouseEnter={(e) => e.target.style.background = compact ? 'var(--btn-hover)' : '#3b82f620'}
         onMouseLeave={(e) => e.target.style.background = compact ? 'var(--input-bg)' : '#3b82f610'}
       >
-        {compact ? '?' : '💡 Explain This'}
+        {compact ? '?' : 'Explain This'}
       </button>
 
       {showExplanation && (
