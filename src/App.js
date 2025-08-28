@@ -48,6 +48,24 @@ function App() {
     return savedFontSize || 'default';
   });
 
+  // Dynamically adjust padding based on navbar height
+  useEffect(() => {
+    const adjustPadding = () => {
+      const navbar = document.querySelector('.navbar');
+      if (navbar) {
+        const navbarHeight = navbar.offsetHeight;
+        const isMobileView = window.innerWidth <= 768;
+        // Only add extra padding on mobile
+        const extraPadding = isMobileView ? 20 : 0;
+        document.body.style.paddingTop = `${navbarHeight + extraPadding}px`;
+      }
+    };
+
+    adjustPadding();
+    window.addEventListener('resize', adjustPadding);
+    return () => window.removeEventListener('resize', adjustPadding);
+  }, []);
+
   // Mobile detection state
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   

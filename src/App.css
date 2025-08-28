@@ -53,13 +53,12 @@ body {
   background: linear-gradient(var(--gradient-start), var(--gradient-end));
   transition: background 0.3s ease, color 0.3s ease, font-size 0.3s ease;
   min-height: 100vh;
-  padding-top: 120px; /* Space for fixed navbar */
+  padding-top: 120px; /* Default, will be overridden by JS */
   padding-bottom: 280px; /* Space for fixed footer on desktop */
 }
 
 @media (max-width: 768px) {
   body {
-    padding-top: 140px; /* Extra space for navbar on mobile */
     padding-bottom: 0; /* No fixed footer on mobile */
   }
   
