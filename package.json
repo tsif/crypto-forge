@@ -1,7 +1,7 @@
 {
   "name": "key-wizard",
   "version": "1.0.0",
-  "homepage": "https://tsif.github.io/crypto-forge",
+  "homepage": "https://cryptoforge.eu",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",

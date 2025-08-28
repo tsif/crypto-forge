@@ -45,9 +45,6 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          # Set the base path for GitHub Pages
-          PUBLIC_URL: /crypto-forge
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
