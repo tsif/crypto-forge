@@ -28,19 +28,25 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
     const hasBegin = /-----BEGIN CERTIFICATE-----/.test(trimmed);
     const hasEnd = /-----END CERTIFICATE-----/.test(trimmed);
     
-    if (!hasBegin && !hasEnd) {
-      setInputError('Certificate must be in PEM format with "-----BEGIN CERTIFICATE-----" header');
+    // Check if it looks like base64 content (relaxed validation)
+    const isBase64Like = /^[A-Za-z0-9+/\s=]+$/.test(trimmed.replace(/-----[^-]+-----/g, ''));
+    
+    if (!hasBegin && !hasEnd && !isBase64Like) {
+      setInputError('Certificate must be in PEM format or base64-encoded DER format');
       return;
     }
     
-    if (!hasBegin) {
-      setInputError('Missing certificate header (-----BEGIN CERTIFICATE-----)');
-      return;
-    }
-    
-    if (!hasEnd) {
-      setInputError('Missing certificate footer (-----END CERTIFICATE-----)');
-      return;
+    // Only warn about missing markers if content doesn't look like base64
+    if (!isBase64Like) {
+      if (!hasBegin) {
+        setInputError('Missing certificate header (-----BEGIN CERTIFICATE-----)');
+        return;
+      }
+      
+      if (!hasEnd) {
+        setInputError('Missing certificate footer (-----END CERTIFICATE-----)');
+        return;
+      }
     }
 
     setInputError(null);
@@ -300,20 +306,41 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
     }
   };
 
+  // Helper function to normalize certificate input
+  const normalizeCertificateInput = (inputText) => {
+    const trimmed = inputText.trim();
+    
+    // If it already has PEM markers, return as is
+    if (trimmed.includes('-----BEGIN CERTIFICATE-----')) {
+      return trimmed;
+    }
+    
+    // If it looks like base64 content without markers, add them
+    const isBase64Like = /^[A-Za-z0-9+/\s=]+$/.test(trimmed);
+    if (isBase64Like) {
+      // Clean up the base64 content (remove whitespace)
+      const cleanBase64 = trimmed.replace(/\s/g, '');
+      return `-----BEGIN CERTIFICATE-----\n${cleanBase64}\n-----END CERTIFICATE-----`;
+    }
+    
+    return trimmed;
+  };
+
   const validateCertificate = async () => {
     setIsValidating(true);
     setResult(null);
 
     try {
       const inputText = input.trim();
+      const normalizedInput = normalizeCertificateInput(inputText);
       
       // Check if this is a certificate chain (multiple certificates)
-      const certBlocks = inputText.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g);
+      const certBlocks = normalizedInput.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g);
       
       if (!certBlocks || certBlocks.length === 0) {
         setResult({
           valid: false,
-          error: 'Invalid certificate format. Expected "BEGIN CERTIFICATE" block.'
+          error: 'Invalid certificate format. Could not parse as PEM or base64-encoded DER.'
         });
         return;
       }
@@ -321,7 +348,7 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
       if (certBlocks.length > 1) {
         // Handle certificate chain
         const chainValidator = new CertificateChainValidator();
-        const certificates = chainValidator.parseCertificateChain(inputText);
+        const certificates = chainValidator.parseCertificateChain(normalizedInput);
         const chainValidation = chainValidator.validateChain();
         
         // Determine overall chain validity status based on all certificates
@@ -353,12 +380,12 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
       }
 
       // Single certificate validation (existing logic)
-      const { der, label } = cryptoUtils.pemToDer(inputText);
+      const { der, label } = cryptoUtils.pemToDer(normalizedInput);
       
       if (!label.includes('CERTIFICATE')) {
         setResult({
           valid: false,
-          error: 'Invalid certificate format. Expected "BEGIN CERTIFICATE" block.'
+          error: 'Invalid certificate format. Could not parse as certificate.'
         });
         return;
       }
@@ -442,7 +469,8 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
         <h2>Validate Certificate</h2>
         <p className="muted">
           Paste or upload <strong>X.509 Certificate(s)</strong> to decode and validate. 
-          Supports single certificates or certificate chains. The validator will parse certificate structure and perform basic chain validation.
+          Supports PEM format (with headers) or base64-encoded DER format (without headers). 
+          Accepts single certificates or certificate chains. The validator will parse certificate structure and perform basic chain validation.
         </p>
         <div className="actions" style={{ marginTop: '8px' }}>
           <input 
@@ -470,7 +498,7 @@ function CertificateValidator({ certInput = '', setCertInput, validationResult =
           <textarea 
             value={input}
             onChange={handleInputChange}
-            placeholder={`-----BEGIN CERTIFICATE-----\nMIIDEDCCAragAwIBAgIUE1oN09EvmTiIbgp1+U580bHJB+MwCgYIKoZIzj0EAwIw...\n-----END CERTIFICATE-----`}
+            placeholder={`-----BEGIN CERTIFICATE-----\nMIIDEDCCAragAwIBAgIUE1oN09EvmTiIbgp1+U580bHJB+MwCgYIKoZIzj0EAwIw...\n-----END CERTIFICATE-----\n\nOr paste base64-encoded certificate data without markers:\nMIIDEDCCAragAwIBAgIUE1oN09EvmTiIbgp1+U580bHJB+MwCgYIKoZIzj0EAwIw...`}
             style={{ minHeight: '200px' }}
           />
           {inputError && (
