@@ -29,7 +29,7 @@ function JwtBuilder({
   }, []);
 
   const [localState, setLocalState] = useState({
-    activeSubTab: isMobile ? 'verify' : 'create',
+    activeSubTab: 'verify',
     // Create JWT state
     selectedKeyId: '',
     customKey: '',
@@ -756,12 +756,19 @@ function JwtBuilder({
         <p className="muted">
           {isMobile 
             ? 'Verify and decode JSON Web Tokens. Supports RSA and EC algorithms with signature verification.'
-            : 'Create and verify JSON Web Tokens using your generated keys or custom keys. Supports RSA and EC algorithms with proper signature verification.'
+            : 'Verify and decode JSON Web Tokens, or create new tokens using your generated keys. Supports RSA and EC algorithms with proper signature verification.'
           }
         </p>
         
-        {/* Sub-tab navigation - Only show Create JWT on desktop */}
+        {/* Sub-tab navigation - Verify JWT first, Create JWT second */}
         <div className="segmented-control" style={{ marginTop: '16px' }}>
+          <button
+            className={`segment ${state.activeSubTab === 'verify' ? 'active' : ''}`}
+            onClick={() => updateState({ activeSubTab: 'verify' })}
+            style={isMobile ? { width: '100%' } : {}}
+          >
+            Verify JWT
+          </button>
           {!isMobile && (
             <button
               className={`segment ${state.activeSubTab === 'create' ? 'active' : ''}`}
@@ -770,13 +777,6 @@ function JwtBuilder({
               Create JWT
             </button>
           )}
-          <button
-            className={`segment ${state.activeSubTab === 'verify' ? 'active' : ''}`}
-            onClick={() => updateState({ activeSubTab: 'verify' })}
-            style={isMobile ? { width: '100%' } : {}}
-          >
-            Verify JWT
-          </button>
         </div>
       </section>
 

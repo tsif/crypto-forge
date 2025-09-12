@@ -17,7 +17,7 @@ function SegmentedControl({ activeTab, onTabChange }) {
     { id: 'generate', label: 'Generate Keys', mobileLabel: 'Generate' },
     { id: 'jwt-verify', label: 'JWT Builder', mobileLabel: 'JWT' },
     { id: 'pem-convert', label: 'PEM → JWK / JWKS', mobileLabel: 'Convert' },
-    { id: 'certificate-generator', label: 'Generate Certificate', mobileLabel: 'Gen Cert' },
+    // { id: 'certificate-generator', label: 'Generate Certificate', mobileLabel: 'Gen Cert' },
     { id: 'validate-keys', label: 'Validate Keys', mobileLabel: 'Val Keys' },
     { id: 'validate-cert', label: 'Validate Certificate', mobileLabel: 'Val Cert' }
   ];
